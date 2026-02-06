@@ -1,7 +1,7 @@
 # MS Graph for Office 365
 
 Publisher: Splunk <br>
-Connector Version: 4.1.0 <br>
+Connector Version: 1.0.1 <br>
 Product Vendor: Microsoft <br>
 Product Name: Office 365 (MS Graph) <br>
 Minimum Product Version: 6.3.0
@@ -2216,7 +2216,7 @@ ______________________________________________________________________
 
 Auto-generated Splunk SOAR Connector documentation.
 
-Copyright 2025 Splunk Inc.
+Copyright 2026 Splunk Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

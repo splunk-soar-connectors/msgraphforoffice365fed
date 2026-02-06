@@ -1,6 +1,6 @@
-# File: office365_view.py
+# File: office365fed_view.py
 #
-# Copyright (c) 2017-2025 Splunk Inc.
+# Copyright (c) 2017-2026 Splunk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -92,21 +92,21 @@ def display_view(provides, all_app_runs, context):
     return_page = None
 
     if provides == "list events":
-        return_page = "office365_list_events.html"
+        return_page = "office365fed_list_events.html"
 
     if provides == "get email":
-        return_page = "office365_get_email.html"
+        return_page = "office365fed_get_email.html"
 
     if provides == "run query":
-        return_page = "office365_run_query.html"
+        return_page = "office365fed_run_query.html"
 
     if provides == "get rule":
-        return_page = "office365_get_rule.html"
+        return_page = "office365fed_get_rule.html"
 
     if provides == "list rules":
-        return_page = "office365_list_rules.html"
+        return_page = "office365fed_list_rules.html"
 
     if provides == "resolve name":
-        return_page = "office365_resolve_name.html"
+        return_page = "office365fed_resolve_name.html"
 
     return return_page

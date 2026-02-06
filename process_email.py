@@ -1,6 +1,6 @@
 # File: process_email.py
 #
-# Copyright (c) 2017-2025 Splunk Inc.
+# Copyright (c) 2017-2026 Splunk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ from django.core.validators import URLValidator
 from phantom.vault import Vault
 from requests.structures import CaseInsensitiveDict
 
-from office365_consts import MSGOFFICE365_ERROR_MSG_UNAVAILABLE
+from office365fed_consts import MSGOFFICE365_ERROR_MSG_UNAVAILABLE
 
 
 _container_common = {"run_automation": False}  # Don't run any playbooks, when this artifact is added

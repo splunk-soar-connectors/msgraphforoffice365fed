@@ -4,11 +4,12 @@
     "description": "This app connects to Office 365 using the MS Graph API to support investigate and generic actions related to the email messages and calendar events",
     "type": "email",
     "product_vendor": "Microsoft",
-    "logo": "logo_microsoftoffice365.svg",
-    "logo_dark": "logo_microsoftoffice365_dark.svg",
+    "logo": "logo_microsoftoffice365fed.svg",
+    "logo_dark": "logo_microsoftoffice365fed_dark.svg",
     "product_name": "Office 365 (MS Graph)",
     "product_version_regex": ".*",
     "publisher": "Splunk",
+    "app_version": "1.0.1",
     "contributors": [
         {
             "name": "Alan Shaikh"
@@ -32,11 +33,10 @@
             "name": "Anton Neledov"
         }
     ],
-    "license": "Copyright (c) 2017-2025 Splunk Inc.",
-    "app_version": "4.1.0",
+    "license": "Copyright (c) 2017-2026 Splunk Inc.",
     "utctime_updated": "2026-01-09T05:33:39.032641Z",
     "package_name": "phantom_msgraphoffice365",
-    "main_module": "office365_connector.py",
+    "main_module": "office365fed_connector.py",
     "min_phantom_version": "6.3.0",
     "latest_tested_versions": [
         "Cloud 13 Feb, 2025"
@@ -44,7 +44,7 @@
     "app_wizard_version": "1.0.0",
     "python_version": "3.9, 3.13",
     "fips_compliant": true,
-    "rest_handler": "office365_connector.handle_request",
+    "rest_handler": "office365fed_connector.handle_request",
     "configuration": {
         "tenant": {
             "description": "Tenant ID (e.g. 1e309abf-db6c-XXXX-a1d2-XXXXXXXXXXXX)",

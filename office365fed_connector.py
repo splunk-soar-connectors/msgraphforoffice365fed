@@ -1,6 +1,6 @@
-# File: office365_connector.py
+# File: office365fed_connector.py
 #
-# Copyright (c) 2017-2025 Splunk Inc.
+# Copyright (c) 2017-2026 Splunk Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ from phantom.action_result import ActionResult
 from phantom.base_connector import BaseConnector
 from phantom.vault import Vault
 
-from office365_consts import *
+from office365fed_consts import *
 from process_email import ProcessEmail
 
 
