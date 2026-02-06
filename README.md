@@ -1,4 +1,4 @@
-# MS Graph for Office 365
+# MS Graph for Office 365 - National Clouds
 
 Publisher: Splunk <br>
 Connector Version: 1.0.1 <br>
@@ -6,7 +6,7 @@ Product Vendor: Microsoft <br>
 Product Name: Office 365 (MS Graph) <br>
 Minimum Product Version: 6.3.0
 
-This app connects to Office 365 using the MS Graph API to support investigate and generic actions related to the email messages and calendar events
+This app connects to Office 365 national cloud deployments (US Government GCC High L4, DoD L5, and China 21Vianet) using the MS Graph API to support investigate and generic actions related to email messages and calendar events
 
 ## Playbook Backward Compatibility
 
@@ -47,11 +47,19 @@ For **least privilege access**, use the **Application Administrator** role, whic
 
 ## Step-by-Step Configuration
 
+> **Important**: This connector is designed for Microsoft Government and Sovereign clouds. The default cloud environment is **US Gov L4 (GCC High)** using `https://graph.microsoft.us`. All examples in this guide use GCC High endpoints unless otherwise specified. Ensure all URLs and scopes match your selected cloud environment:
+>
+> - **GCC High (default)**: Graph endpoint `https://graph.microsoft.us`, Portal `https://portal.azure.us`
+> - **DoD**: Graph endpoint `https://dod-graph.microsoft.us`, Portal `https://portal.azure.us`
+> - **China 21Vianet**: Graph endpoint `https://microsoftgraph.chinacloudapi.cn`, Portal `https://portal.azure.cn`
+
 ### Step 1: Azure AD App Registration
 
 1. **Create Application**
 
-   - Navigate to [Azure Portal](https://portal.azure.com)
+   - Navigate to the Azure Portal for your cloud environment:
+     - **GCC High / DoD**: [https://portal.azure.us](https://portal.azure.us)
+     - **China 21Vianet**: [https://portal.azure.cn](https://portal.azure.cn)
    - Go to **Azure Active Directory** → **App registrations** → **New registration**
    - **Name**: Enter descriptive name (e.g., "SOAR-MSGraph-Connector")
    - **Supported account types**: "Accounts in this organizational directory only"
@@ -250,7 +258,11 @@ Test Connectivity needs at least one of these permissions:
 
    - Uncheck **Admin Access Required**
    - Provide **Access Scope** with appropriate permissions
-   - Example: `https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read`
+   - Example (GCC High): `https://graph.microsoft.us/User.Read https://graph.microsoft.us/Calendars.Read`
+   - **Note**: The base URL must match your selected cloud environment:
+     - GCC High: `https://graph.microsoft.us`
+     - DoD: `https://dod-graph.microsoft.us`
+     - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 1. **Test Process**:
 
@@ -324,7 +336,11 @@ Test Connectivity needs at least one of these permissions:
 
 - **Test Connectivity**: Always requires at least `User.Read.All` (App) or `User.Read` (Del)
 - **Beta APIs**: Block/unblock sender actions use Microsoft Graph beta endpoints
-- When you add the scope parameter, multiple scopes are passed as space-separated values. <br>For example: `https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read` <br>This means the scopes `User.Read` and `Calendars.Read` are being requested.
+- **Cloud Environment URLs**: The scope parameter URLs must match your selected cloud environment:
+  - GCC High (default): `https://graph.microsoft.us`
+  - DoD: `https://dod-graph.microsoft.us`
+  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
+- When you add the scope parameter, multiple scopes are passed as space-separated values. <br>For example: `https://graph.microsoft.us/User.Read https://graph.microsoft.us/Calendars.Read` <br>This means the scopes `User.Read` and `Calendars.Read` are being requested for GCC High environment.
 
 ## User Permissions Setup
 
@@ -412,7 +428,8 @@ This is applicable to 'on poll', 'copy email', 'move email', and 'run query' act
 - **Admin Access Required** unchecked requires **scope** parameter configuration
 - All actions execute according to provided scopes in the **scope** parameter
 - Actions will throw appropriate errors if required scope permissions are not provided
-- Default scope works for calendar events: `https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/User.Read`
+- Default scope (GCC High): `https://graph.microsoft.us/Calendars.Read https://graph.microsoft.us/User.Read`
+- **Important**: Replace the base URL (`graph.microsoft.us`) with your cloud environment's endpoint (see Cloud Environment URLs in Important Notes above)
 
 ### API Limitations
 
@@ -528,7 +545,11 @@ This section explains each configuration field in user-friendly terms.
 #### **Access Scope** (Required when Admin Access is unchecked)
 
 - Space-separated permission URLs for delegated permissions
-- Examples: `https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/User.Read`
+- Example (GCC High): `https://graph.microsoft.us/Mail.Read https://graph.microsoft.us/User.Read`
+- **Note**: The base URL varies by cloud environment:
+  - GCC High (default): `https://graph.microsoft.us`
+  - DoD: `https://dod-graph.microsoft.us`
+  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 ### Email Polling Settings
 
@@ -573,19 +594,20 @@ This section explains each configuration field in user-friendly terms.
 
 ### Configuration variables
 
-This table lists the configuration variables required to operate MS Graph for Office 365. These variables are specified when configuring a Office 365 (MS Graph) asset in Splunk SOAR.
+This table lists the configuration variables required to operate MS Graph for Office 365 - National Clouds. These variables are specified when configuring a Office 365 (MS Graph) asset in Splunk SOAR.
 
 VARIABLE | REQUIRED | TYPE | DESCRIPTION
 -------- | -------- | ---- | -----------
 **tenant** | required | string | Tenant ID (e.g. 1e309abf-db6c-XXXX-a1d2-XXXXXXXXXXXX) |
 **client_id** | required | string | Application ID |
 **auth_type** | required | string | Authentication type to use for connectivity |
+**cloud_environment** | required | string | Cloud environment for Graph and Entra endpoints |
 **client_secret** | optional | password | Application Secret(required for OAuth) |
 **certificate_thumbprint** | optional | password | Certificate Thumbprint (required for CBA) |
 **certificate_private_key** | optional | password | Certificate Private Key (.PEM) |
 **admin_access** | optional | boolean | Admin Access Required |
 **admin_consent** | optional | boolean | Admin Consent Already Provided (Required checked for CBA) |
-**scope** | optional | string | Access Scope (for use with OAuth non-admin access; space-separated) |
+**scope** | optional | string | Access Scope (for use with OAuth non-admin access; space-separated). Ensure the scope host matches the selected cloud environment (e.g., graph.microsoft.us for GCC High, dod-graph.microsoft.us for DoD). |
 **email_address** | optional | string | Email Address of the User (On Poll) |
 **folder** | optional | string | Mailbox folder name/folder path or the internal office365 folder ID to ingest (On Poll) |
 **get_folder_id** | optional | boolean | Retrieve the folder ID for the provided folder name/folder path automatically and replace the folder parameter value (On Poll) |
@@ -626,9 +648,6 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 [send email](#action-send-email) - Sends an email with optional text rendering. Attachments are allowed a Content-ID tag for reference within the html <br>
 [on poll](#action-on-poll) - Ingest emails from Office 365 using Graph API <br>
 [update email](#action-update-email) - Update an email on the server <br>
-[report message](#action-report-message) - Add the sender email into the report <br>
-[block sender](#action-block-sender) - Add the sender email into the block list <br>
-[unblock sender](#action-unblock-sender) - Remove the sender email from the block list <br>
 [resolve name](#action-resolve-name) - Verify aliases and resolve display names to the appropriate user <br>
 [get mailbox messages](#action-get-mailbox-messages) - Retrieves messages from a specified mailbox folder with advanced functionality
 
@@ -1931,99 +1950,6 @@ action_result.summary | string | | |
 action_result.message | string | | Create time: 2017-10-05T20:19:58Z Subject: Both value are modified Sent time: 2017-10-03T21:31:20Z |
 summary.total_objects | numeric | | 1 |
 summary.total_objects_successful | numeric | | 1 |
-
-## action: 'report message'
-
-Add the sender email into the report
-
-Type: **contain** <br>
-Read only: **False**
-
-This action processes an email message and updates the sender classification based on the selected verdict (junk, notJunk, phish, unknown, or unknownFutureValue). When enabled, the message can optionally be moved to the corresponding folder based on the verdict. The action applies only if a message from the sender exists in the user's mailbox.
-
-#### Action Parameters
-
-PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
---------- | -------- | ----------- | ---- | --------
-**message_id** | required | Message ID to pick the sender of | string | |
-**user_id** | required | User ID to base the action of | string | |
-**is_message_move_requested** | optional | Indicates whether the message should be moved out of current folder | boolean | |
-**report_action** | required | Indicates the type of action to be reported on the message | string | |
-
-#### Action Output
-
-DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
---------- | ---- | -------- | --------------
-action_result.parameter.message_id | string | | |
-action_result.parameter.user_id | string | | |
-action_result.parameter.is_message_move_requested | boolean | | |
-action_result.parameter.report_action | string | | |
-action_result.status | string | | success failed |
-action_result.message | string | | |
-summary.total_objects | numeric | | |
-summary.total_objects_successful | numeric | | |
-
-## action: 'block sender'
-
-Add the sender email into the block list
-
-Type: **contain** <br>
-Read only: **False**
-
-This action takes as input an email whose sender will be added to the Block Senders List. The message ID changes after the execution and is a required parameter for request hence undo action would require unique ID. Note that a message from the email address must exist in the user's mailbox before you can add the email address to or remove it from the Blocked Senders List.<ul><li>If the <b>move_to_junk_folder</b> parameter is set to True, the sender of the target email message is added to the blocked sender list and the email message is moved to the Junk Email folder.</li><li>If the <b>move_to_junk_folder</b> attribute is set to False, the sender of the target email message is added to the blocked sender list and the email message is not moved from the folder.</li></ul>To view the current Block Senders list, please read the following Powershell articles: <ul><li>https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/connect-to-exchange-online-powershell?view=exchange-ps</li><li>https://docs.microsoft.com/en-us/powershell/module/exchange/antispam-antimalware/Get-MailboxJunkEmailConfiguration?view=exchange-ps.</li></ul>
-
-#### Action Parameters
-
-PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
---------- | -------- | ----------- | ---- | --------
-**message_id** | required | Message ID to pick the sender of | string | |
-**user_id** | required | User ID to base the action of | string | |
-**move_to_junk_folder** | optional | Should the email be moved to the junk folder | boolean | |
-
-#### Action Output
-
-DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
---------- | ---- | -------- | --------------
-action_result.parameter.message_id | string | | |
-action_result.parameter.move_to_junk_folder | boolean | | |
-action_result.parameter.user_id | boolean | | |
-action_result.status | string | | success failed |
-action_result.summary | string | | |
-action_result.status | string | | success failed |
-action_result.message | string | | |
-summary.total_objects | numeric | | |
-summary.total_objects_successful | numeric | | |
-
-## action: 'unblock sender'
-
-Remove the sender email from the block list
-
-Type: **contain** <br>
-Read only: **False**
-
-This action takes as input an email whose sender will be removed from the Block Senders List. The message ID changes after the execution and is a required parameter for request hence undo action would require unique ID. Note that a message from the email address must exist in the user's mailbox before you can add the email address to or remove it from the Blocked Senders List.<ul><li>If the <b>move_to_inbox</b> parameter is set to True, the sender of the target email message is removed from the blocked sender list and the email message is moved from the Junk Email folder.</li><li>If the <b>move_to_inbox</b> attribute is set to False, the sender of the target email message is removed from the blocked sender list and the email message is not moved from the folder.</li></ul>To view the current Block Senders list, please read the following Powershell articles: <ul><li>https://docs.microsoft.com/en-us/powershell/exchange/exchange-online/connect-to-exchange-online-powershell/connect-to-exchange-online-powershell?view=exchange-ps</li><li>https://docs.microsoft.com/en-us/powershell/module/exchange/antispam-antimalware/Get-MailboxJunkEmailConfiguration?view=exchange-ps.</li></ul>
-
-#### Action Parameters
-
-PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
---------- | -------- | ----------- | ---- | --------
-**message_id** | required | Message ID to pick the sender of | string | |
-**user_id** | required | User ID to base the action of | string | |
-**move_to_inbox** | optional | Should the email be moved to the inbox folder | boolean | |
-
-#### Action Output
-
-DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
---------- | ---- | -------- | --------------
-action_result.parameter.message_id | string | | |
-action_result.parameter.move_to_inbox | boolean | | |
-action_result.parameter.user_id | boolean | | |
-action_result.status | string | | success failed |
-action_result.summary | string | | |
-action_result.status | string | | success failed |
-action_result.message | string | | |
-summary.total_objects | numeric | | |
-summary.total_objects_successful | numeric | | |
 
 ## action: 'resolve name'
 

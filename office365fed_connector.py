@@ -44,11 +44,31 @@ from process_email import ProcessEmail
 
 
 TC_FILE = "oauth_task.out"
-SERVER_TOKEN_URL = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token"
-MSGOFFICE365_AUTHORITY_URL = "https://login.microsoftonline.com/{tenant}"
-MSGRAPH_API_URL = "https://graph.microsoft.com"
+# National cloud endpoints (federal + China 21Vianet)
+SERVER_TOKEN_URL = "{base_url}/{tenant}/oauth2/v2.0/token"
+MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
-MSGOFFICE365_DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
+
+CLOUD_ENVIRONMENTS = {
+    "US Gov L4 (GCC High)": {
+        "graph": "https://graph.microsoft.us",
+        "entra": "https://login.microsoftonline.us",
+    },
+    "US Gov L5 (DoD)": {
+        "graph": "https://dod-graph.microsoft.us",
+        "entra": "https://login.microsoftonline.us",
+    },
+    "China (21Vianet)": {
+        "graph": "https://microsoftgraph.chinacloudapi.cn",
+        "entra": "https://login.partner.microsoftonline.cn",
+    },
+}
+
+KNOWN_GRAPH_HOSTS = {
+    "https://graph.microsoft.us",
+    "https://dod-graph.microsoft.us",
+    "https://microsoftgraph.chinacloudapi.cn",
+}
 
 
 class ReturnException(Exception):
@@ -756,9 +776,9 @@ class Office365Connector(BaseConnector):
             url = nextLink
         else:
             if not beta:
-                url = f"{MSGRAPH_API_URL}/v1.0{endpoint}"
+                url = f"{self._graph_base_url}/v1.0{endpoint}"
             else:
-                url = f"{MSGRAPH_API_URL}/beta{endpoint}"
+                url = f"{self._graph_base_url}/beta{endpoint}"
 
         if headers is None:
             headers = {}
@@ -2616,6 +2636,17 @@ class Office365Connector(BaseConnector):
             return action_result.set_status(phantom.APP_ERROR, f"Failed to find vault entry {vault_id}"), None
 
         if vault_info["size"] > MSGOFFICE365_UPLOAD_SESSION_CUTOFF:
+            # createUploadSession is not supported in GCC High and DoD clouds, but is supported in China
+            if self._cloud_environment in ("US Gov L4 (GCC High)", "US Gov L5 (DoD)"):
+                return (
+                    action_result.set_status(
+                        phantom.APP_ERROR,
+                        f"Attachment size exceeds 3 MB. Large attachments require createUploadSession API, which is not supported in {self._cloud_environment}. "
+                        "Please use an attachment smaller than 3 MB.",
+                    ),
+                    None,
+                )
+            # China (21Vianet) supports createUploadSession
             ret_val, attachment_id = self._upload_large_attachment(action_result, vault_info, user_id, message_id)
         else:
             ret_val, attachment_id = self._upload_small_attachment(action_result, vault_info, user_id, message_id)
@@ -2853,74 +2884,6 @@ class Office365Connector(BaseConnector):
 
         return action_result.set_status(phantom.APP_SUCCESS, "Successfully updated email")
 
-    def _report_message_sender(self, param):
-        self.save_progress(f"In action handler for: {self.get_action_identifier()}")
-        action_result = self.add_action_result(ActionResult(dict(param)))
-
-        message = param["message_id"]
-        user = param["user_id"]
-        is_message_move_requested = param.get("is_message_move_requested", False)
-        report_action = param["report_action"]
-
-        endpoint = f"/users/{user}/messages/{message}/reportMessage"
-        self.save_progress(f"endpoint {endpoint}")
-
-        ret_val, response = self._make_rest_call_helper(
-            action_result,
-            endpoint,
-            data=json.dumps({"IsMessageMoveRequested": is_message_move_requested, "ReportAction": report_action}),
-            method="post",
-            beta=True,
-        )
-
-        if phantom.is_fail(ret_val):
-            return action_result.set_status(phantom.APP_ERROR, f"Failed to report email with ID {message} as '{report_action}'")
-
-        action_result.add_data(response)
-        return action_result.set_status(phantom.APP_SUCCESS)
-
-    def _handle_block_sender(self, param):
-        self.save_progress(f"In action handler for: {self.get_action_identifier()}")
-        action_result = self.add_action_result(ActionResult(dict(param)))
-
-        message = param["message_id"]
-        user = param["user_id"]
-        move_to_junk_folder = param.get("move_to_junk_folder", False)
-
-        endpoint = f"/users/{user}/messages/{message}/markAsJunk"
-        self.save_progress(f"endpoint {endpoint}")
-
-        ret_val, response = self._make_rest_call_helper(
-            action_result, endpoint, data=json.dumps({"moveToJunk": move_to_junk_folder}), method="post", beta=True
-        )
-
-        if phantom.is_fail(ret_val):
-            return action_result.set_status(phantom.APP_ERROR, f"Moving email  with id: {message} to junk folder failed")
-
-        action_result.add_data(response)
-        return action_result.set_status(phantom.APP_SUCCESS)
-
-    def _handle_unblock_sender(self, param):
-        self.save_progress(f"In action handler for: {self.get_action_identifier()}")
-        action_result = self.add_action_result(ActionResult(dict(param)))
-
-        message = param["message_id"]
-        user = param["user_id"]
-        move_to_inbox = param.get("move_to_inbox", False)
-
-        endpoint = f"/users/{user}/messages/{message}/markAsNotJunk"
-        self.save_progress(f"endpoint {endpoint}")
-
-        ret_val, response = self._make_rest_call_helper(
-            action_result, endpoint, data=json.dumps({"moveToInbox": move_to_inbox}), method="post", beta=True
-        )
-
-        if phantom.is_fail(ret_val):
-            return action_result.set_status(phantom.APP_ERROR, f"Moving email  with id: {message} to inbox folder failed")
-
-        action_result.add_data(response)
-        return action_result.set_status(phantom.APP_SUCCESS)
-
     def _handle_resolve_name(self, param):
         self.save_progress(f"In action handler for: {self.get_action_identifier()}")
         action_result = self.add_action_result(ActionResult(dict(param)))
@@ -3064,17 +3027,15 @@ class Office365Connector(BaseConnector):
 
         self.debug_print("action_id", self.get_action_identifier())
 
+        if action_id in ("list_rules", "get_rule") and self._cloud_environment == "China (21Vianet)":
+            action_result = self.add_action_result(ActionResult(param))
+            return action_result.set_status(
+                phantom.APP_ERROR,
+                "The messageRules APIs are not supported in the China (21Vianet) cloud environment.",
+            )
+
         if action_id == "resolve_name":
             ret_val = self._handle_resolve_name(param)
-
-        if action_id == "report_message":
-            ret_val = self._report_message_sender(param)
-
-        if action_id == "block_sender":
-            ret_val = self._handle_block_sender(param)
-
-        if action_id == "unblock_sender":
-            ret_val = self._handle_unblock_sender(param)
 
         if action_id == "test_connectivity":
             ret_val = self._handle_test_connectivity(param)
@@ -3187,7 +3148,7 @@ class Office365Connector(BaseConnector):
         try:
             app = msal.ConfidentialClientApplication(
                 self._client_id,
-                authority=MSGOFFICE365_AUTHORITY_URL.format(tenant=self._tenant),
+                authority=MSGOFFICE365_AUTHORITY_URL.format(base_url=self._entra_base_url, tenant=self._tenant),
                 client_credential={"thumbprint": self._thumbprint, "private_key": self._private_key},
             )
         except Exception as e:
@@ -3201,7 +3162,7 @@ class Office365Connector(BaseConnector):
             )
 
         self.debug_print("Requesting new token from Azure AD.")
-        res_json = app.acquire_token_for_client(scopes=[MSGOFFICE365_DEFAULT_SCOPE])
+        res_json = app.acquire_token_for_client(scopes=[self._default_scope])
 
         if error := res_json.get("error"):
             # replace thumbprint to dummy value
@@ -3212,7 +3173,7 @@ class Office365Connector(BaseConnector):
 
     def _generate_new_oauth_access_token(self, action_result):
         self.save_progress("Generating token using OAuth Authentication...")
-        req_url = SERVER_TOKEN_URL.format(self._tenant)
+        req_url = SERVER_TOKEN_URL.format(base_url=self._entra_base_url, tenant=self._tenant)
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
         data = {
@@ -3224,7 +3185,7 @@ class Office365Connector(BaseConnector):
         if not self._admin_access:
             data["scope"] = "offline_access " + self._scope
         else:
-            data["scope"] = MSGOFFICE365_DEFAULT_SCOPE
+            data["scope"] = self._default_scope
 
         if not self._admin_access:
             if self._state.get("code"):
@@ -3328,7 +3289,7 @@ class Office365Connector(BaseConnector):
 
         if self._admin_access:
             # Create the url for fetching administrator consent
-            admin_consent_url = f"https://login.microsoftonline.com/{self._tenant}/adminconsent"
+            admin_consent_url = f"{self._entra_base_url}/{self._tenant}/adminconsent"
             admin_consent_url += f"?client_id={self._client_id}"
             admin_consent_url += f"&redirect_uri={redirect_uri}"
             admin_consent_url += f"&state={self._asset_id}"
@@ -3338,7 +3299,7 @@ class Office365Connector(BaseConnector):
                 self.save_progress(MSGOFFICE365_NON_ADMIN_SCOPE_ERROR)
                 return action_result.set_status(phantom.APP_ERROR)
             # Create the url authorization, this is the one pointing to the oauth server side
-            admin_consent_url = f"https://login.microsoftonline.com/{self._tenant}/oauth2/v2.0/authorize"
+            admin_consent_url = f"{self._entra_base_url}/{self._tenant}/oauth2/v2.0/authorize"
             admin_consent_url += f"?client_id={self._client_id}"
             admin_consent_url += f"&redirect_uri={redirect_uri}"
             admin_consent_url += f"&state={self._asset_id}"
@@ -3438,6 +3399,17 @@ class Office365Connector(BaseConnector):
         self._admin_consent = config.get("admin_consent")
         self._thumbprint = config.get("certificate_thumbprint")
         self._certificate_private_key = config.get("certificate_private_key")
+        self._cloud_environment = config.get("cloud_environment", "US Gov L4 (GCC High)")
+        cloud_cfg = CLOUD_ENVIRONMENTS.get(self._cloud_environment)
+        if not cloud_cfg:
+            return self.set_status(
+                phantom.APP_ERROR,
+                f"Invalid cloud environment: {self._cloud_environment}. Please update the asset configuration.",
+            )
+        self._entra_base_url = cloud_cfg["entra"]
+        self._graph_base_url = cloud_cfg["graph"]
+        self._default_scope = f"{self._graph_base_url}/.default"
+
         self._scope = config.get("scope") if config.get("scope") else None
 
         if self._auth_type == "cba":

@@ -37,11 +37,19 @@ For **least privilege access**, use the **Application Administrator** role, whic
 
 ## Step-by-Step Configuration
 
+> **Important**: This connector is designed for Microsoft Government and Sovereign clouds. The default cloud environment is **US Gov L4 (GCC High)** using `https://graph.microsoft.us`. All examples in this guide use GCC High endpoints unless otherwise specified. Ensure all URLs and scopes match your selected cloud environment:
+>
+> - **GCC High (default)**: Graph endpoint `https://graph.microsoft.us`, Portal `https://portal.azure.us`
+> - **DoD**: Graph endpoint `https://dod-graph.microsoft.us`, Portal `https://portal.azure.us`
+> - **China 21Vianet**: Graph endpoint `https://microsoftgraph.chinacloudapi.cn`, Portal `https://portal.azure.cn`
+
 ### Step 1: Azure AD App Registration
 
 1. **Create Application**
 
-   - Navigate to [Azure Portal](https://portal.azure.com)
+   - Navigate to the Azure Portal for your cloud environment:
+     - **GCC High / DoD**: [https://portal.azure.us](https://portal.azure.us)
+     - **China 21Vianet**: [https://portal.azure.cn](https://portal.azure.cn)
    - Go to **Azure Active Directory** → **App registrations** → **New registration**
    - **Name**: Enter descriptive name (e.g., "SOAR-MSGraph-Connector")
    - **Supported account types**: "Accounts in this organizational directory only"
@@ -240,7 +248,11 @@ Test Connectivity needs at least one of these permissions:
 
    - Uncheck **Admin Access Required**
    - Provide **Access Scope** with appropriate permissions
-   - Example: `https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read`
+   - Example (GCC High): `https://graph.microsoft.us/User.Read https://graph.microsoft.us/Calendars.Read`
+   - **Note**: The base URL must match your selected cloud environment:
+     - GCC High: `https://graph.microsoft.us`
+     - DoD: `https://dod-graph.microsoft.us`
+     - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 1. **Test Process**:
 
@@ -314,7 +326,11 @@ Test Connectivity needs at least one of these permissions:
 
 - **Test Connectivity**: Always requires at least `User.Read.All` (App) or `User.Read` (Del)
 - **Beta APIs**: Block/unblock sender actions use Microsoft Graph beta endpoints
-- When you add the scope parameter, multiple scopes are passed as space-separated values. <br>For example: `https://graph.microsoft.com/User.Read https://graph.microsoft.com/Calendars.Read` <br>This means the scopes `User.Read` and `Calendars.Read` are being requested.
+- **Cloud Environment URLs**: The scope parameter URLs must match your selected cloud environment:
+  - GCC High (default): `https://graph.microsoft.us`
+  - DoD: `https://dod-graph.microsoft.us`
+  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
+- When you add the scope parameter, multiple scopes are passed as space-separated values. <br>For example: `https://graph.microsoft.us/User.Read https://graph.microsoft.us/Calendars.Read` <br>This means the scopes `User.Read` and `Calendars.Read` are being requested for GCC High environment.
 
 ## User Permissions Setup
 
@@ -402,12 +418,15 @@ This is applicable to 'on poll', 'copy email', 'move email', and 'run query' act
 - **Admin Access Required** unchecked requires **scope** parameter configuration
 - All actions execute according to provided scopes in the **scope** parameter
 - Actions will throw appropriate errors if required scope permissions are not provided
-- Default scope works for calendar events: `https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/User.Read`
+- Default scope (GCC High): `https://graph.microsoft.us/Calendars.Read https://graph.microsoft.us/User.Read`
+- **Important**: Replace the base URL (`graph.microsoft.us`) with your cloud environment's endpoint (see Cloud Environment URLs in Important Notes above)
 
 ### API Limitations
 
 - Unicode values in run_query subject/body parameters may fail if results exceed 999 items
 - Use more specific search criteria to reduce result count when encountering Unicode issues
+- **Email Attachment Size Limits**:
+  - **GCC High and DoD**: Maximum attachment size is 3 MB. The `createUploadSession` API for larger attachments is not available in these clouds.
 
 ### Security
 
@@ -518,7 +537,11 @@ This section explains each configuration field in user-friendly terms.
 #### **Access Scope** (Required when Admin Access is unchecked)
 
 - Space-separated permission URLs for delegated permissions
-- Examples: `https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/User.Read`
+- Example (GCC High): `https://graph.microsoft.us/Mail.Read https://graph.microsoft.us/User.Read`
+- **Note**: The base URL varies by cloud environment:
+  - GCC High (default): `https://graph.microsoft.us`
+  - DoD: `https://dod-graph.microsoft.us`
+  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 ### Email Polling Settings
 
