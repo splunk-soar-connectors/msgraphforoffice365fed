@@ -1,7 +1,7 @@
 {
     "appid": "96ee265e-ca5c-4897-b61a-243a8175db31",
-    "name": "MS Graph for Office 365 - National Clouds",
-    "description": "This app connects to Office 365 national cloud deployments (US Government GCC High L4, DoD L5, and China 21Vianet) using the MS Graph API to support investigate and generic actions related to email messages and calendar events",
+    "name": "MS Graph for Office 365 - Federal",
+    "description": "This app connects to Office 365 national cloud deployments (US Government GCC High L4, DoD L5, and China 21Vianet) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events",
     "type": "email",
     "product_vendor": "Microsoft",
     "logo": "logo_microsoftoffice365fed.svg",
@@ -20,7 +20,7 @@
     ],
     "license": "Copyright (c) 2017-2026 Splunk Inc.",
     "utctime_updated": "2026-01-09T05:33:39.032641Z",
-    "package_name": "phantom_msgraphoffice365fed",
+    "package_name": "phantom_msgraphforoffice365fed",
     "main_module": "office365fed_connector.py",
     "min_phantom_version": "6.3.0",
     "latest_tested_versions": [

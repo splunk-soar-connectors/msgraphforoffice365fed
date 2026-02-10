@@ -1,4 +1,4 @@
-# MS Graph for Office 365 - National Clouds
+# MS Graph for Office 365 - Federal
 
 Publisher: Splunk <br>
 Connector Version: 1.0.1 <br>
@@ -596,7 +596,7 @@ This section explains each configuration field in user-friendly terms.
 
 ### Configuration variables
 
-This table lists the configuration variables required to operate MS Graph for Office 365 - National Clouds. These variables are specified when configuring a Office 365 (MS Graph) asset in Splunk SOAR.
+This table lists the configuration variables required to operate MS Graph for Office 365 - Federal. These variables are specified when configuring a Office 365 (MS Graph) asset in Splunk SOAR.
 
 VARIABLE | REQUIRED | TYPE | DESCRIPTION
 -------- | -------- | ---- | -----------
