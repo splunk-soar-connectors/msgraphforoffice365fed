@@ -44,7 +44,7 @@ from process_email import ProcessEmail
 
 
 TC_FILE = "oauth_task.out"
-# National cloud endpoints (federal + China 21Vianet)
+# National cloud endpoints (federal)
 SERVER_TOKEN_URL = "{base_url}/{tenant}/oauth2/v2.0/token"
 MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
@@ -58,16 +58,11 @@ CLOUD_ENVIRONMENTS = {
         "graph": "https://dod-graph.microsoft.us",
         "entra": "https://login.microsoftonline.us",
     },
-    "China (21Vianet)": {
-        "graph": "https://microsoftgraph.chinacloudapi.cn",
-        "entra": "https://login.partner.microsoftonline.cn",
-    },
 }
 
 KNOWN_GRAPH_HOSTS = {
     "https://graph.microsoft.us",
     "https://dod-graph.microsoft.us",
-    "https://microsoftgraph.chinacloudapi.cn",
 }
 
 
@@ -2636,20 +2631,17 @@ class Office365Connector(BaseConnector):
             return action_result.set_status(phantom.APP_ERROR, f"Failed to find vault entry {vault_id}"), None
 
         if vault_info["size"] > MSGOFFICE365_UPLOAD_SESSION_CUTOFF:
-            # createUploadSession is not supported in GCC High and DoD clouds, but is supported in China
-            if self._cloud_environment in ("US Gov L4 (GCC High)", "US Gov L5 (DoD)"):
-                return (
-                    action_result.set_status(
-                        phantom.APP_ERROR,
-                        f"Attachment size exceeds 3 MB. Large attachments require createUploadSession API, which is not supported in {self._cloud_environment}. "
-                        "Please use an attachment smaller than 3 MB.",
-                    ),
-                    None,
-                )
-            # China (21Vianet) supports createUploadSession
-            ret_val, attachment_id = self._upload_large_attachment(action_result, vault_info, user_id, message_id)
-        else:
-            ret_val, attachment_id = self._upload_small_attachment(action_result, vault_info, user_id, message_id)
+            # createUploadSession is not supported in US Government clouds
+            return (
+                action_result.set_status(
+                    phantom.APP_ERROR,
+                    f"Attachment size exceeds 3 MB. Large attachments require createUploadSession API, which is not supported in US Government clouds. "
+                    "Please use an attachment smaller than 3 MB.",
+                ),
+                None,
+            )
+        
+        ret_val, attachment_id = self._upload_small_attachment(action_result, vault_info, user_id, message_id)
 
         return ret_val, attachment_id
 
@@ -2668,69 +2660,6 @@ class Office365Connector(BaseConnector):
         if phantom.is_fail(ret_val):
             return action_result.set_status(phantom.APP_ERROR, "Failed to upload vault entry {}".format(vault_info["vault_id"])), None
         attachment_id = response["id"]
-        return phantom.APP_SUCCESS, attachment_id
-
-    def _upload_large_attachment(self, action_result, vault_info, user_id, message_id):
-        endpoint = f"/users/{user_id}/messages/{message_id}/attachments/createUploadSession"
-        file_size = vault_info["size"]
-        data = {
-            "AttachmentItem": {
-                "attachmentType": "file",
-                "name": vault_info["name"],
-                "contentType": vault_info["mime_type"],
-                "contentId": vault_info["vault_id"],
-                "size": file_size,
-            }
-        }
-        ret_val, response = self._make_rest_call_helper(action_result, endpoint, method="post", data=json.dumps(data))
-        if phantom.is_fail(ret_val):
-            return action_result.set_status(phantom.APP_ERROR, "Failed to upload vault entry {}".format(vault_info["vault_id"])), None
-        upload_url = response["uploadUrl"]
-
-        with open(vault_info["path"], mode="rb") as file:
-            for start_position in range(0, file_size, MSGOFFICE365_UPLOAD_LARGE_FILE_CUTOFF):
-                file_content = file.read(MSGOFFICE365_UPLOAD_LARGE_FILE_CUTOFF)
-                end_position = start_position + len(file_content) - 1
-                headers = {
-                    "Content-Type": "application/octet-stream",
-                    "Content-Range": f"bytes {start_position}-{end_position}/{file_size}",
-                }
-                flag = True
-                while flag:
-                    response = requests.put(upload_url, headers=headers, data=file_content)
-
-                    if response.status_code == 429 and response.headers["Retry-After"]:
-                        retry_time = int(response.headers["Retry-After"])
-
-                        if retry_time > 300:  # throw error if wait time greater than 300 seconds
-                            self.debug_print("Retry is canceled as retry time is greater than 300 seconds")
-                            self._process_response(response, action_result)
-                            return (
-                                action_result.set_status(
-                                    phantom.APP_ERROR,
-                                    f"Failed to upload file, {action_result.get_message()} Please retry after \
-                                    {retry_time} seconds",
-                                ),
-                                None,
-                            )
-                        self.debug_print(f"Retrying after {retry_time} seconds")
-                        time.sleep(retry_time + 1)
-                    elif not response.ok:
-                        return (
-                            action_result.set_status(
-                                phantom.APP_ERROR,
-                                f"Failed to upload file, Error occurred : {response.status_code}, {response.text!s}",
-                            ),
-                            None,
-                        )
-                    else:
-                        flag = False
-
-        result_location = response.headers.get("Location", "no_location_found")
-        match = re.search(r"Attachments\('(?P<attachment_id>[^']+)'\)", result_location)
-        if not match:
-            return action_result.set_status(phantom.APP_ERROR, f"Unable to extract attachment id from url {result_location}"), None
-        attachment_id = match.group("attachment_id")
         return phantom.APP_SUCCESS, attachment_id
 
     def _get_message(self, action_result, user_id, message_id):
@@ -3026,13 +2955,6 @@ class Office365Connector(BaseConnector):
         action_id = self.get_action_identifier()
 
         self.debug_print("action_id", self.get_action_identifier())
-
-        if action_id in ("list_rules", "get_rule") and self._cloud_environment == "China (21Vianet)":
-            action_result = self.add_action_result(ActionResult(param))
-            return action_result.set_status(
-                phantom.APP_ERROR,
-                "The messageRules APIs are not supported in the China (21Vianet) cloud environment.",
-            )
 
         if action_id == "resolve_name":
             ret_val = self._handle_resolve_name(param)

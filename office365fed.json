@@ -1,7 +1,7 @@
 {
     "appid": "96ee265e-ca5c-4897-b61a-243a8175db31",
     "name": "MS Graph for Office 365 - Federal",
-    "description": "This app connects to Office 365 national cloud deployments (US Government GCC High L4, DoD L5, and China 21Vianet) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events",
+    "description": "This app connects to Office 365 national cloud deployments (US Government GCC High L4 and DoD L5) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events",
     "type": "email",
     "product_vendor": "Microsoft",
     "logo": "logo_microsoftoffice365fed.svg",
@@ -63,8 +63,7 @@
             "default": "US Gov L4 (GCC High)",
             "value_list": [
                 "US Gov L4 (GCC High)",
-                "US Gov L5 (DoD)",
-                "China (21Vianet)"
+                "US Gov L5 (DoD)"
             ]
         },
         "client_secret": {

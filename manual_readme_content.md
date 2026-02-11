@@ -37,11 +37,10 @@ For **least privilege access**, use the **Application Administrator** role, whic
 
 ## Step-by-Step Configuration
 
-> **Important**: This connector is designed for Microsoft Government and Sovereign clouds. The default cloud environment is **US Gov L4 (GCC High)** using `https://graph.microsoft.us`. All examples in this guide use GCC High endpoints unless otherwise specified. Ensure all URLs and scopes match your selected cloud environment:
+> **Important**: This connector is designed for Microsoft Government clouds. The default cloud environment is **US Gov L4 (GCC High)** using `https://graph.microsoft.us`. All examples in this guide use GCC High endpoints unless otherwise specified. Ensure all URLs and scopes match your selected cloud environment:
 >
 > - **GCC High (default)**: Graph endpoint `https://graph.microsoft.us`, Portal `https://portal.azure.us`
 > - **DoD**: Graph endpoint `https://dod-graph.microsoft.us`, Portal `https://portal.azure.us`
-> - **China 21Vianet**: Graph endpoint `https://microsoftgraph.chinacloudapi.cn`, Portal `https://portal.azure.cn`
 
 ### Step 1: Azure AD App Registration
 
@@ -49,7 +48,6 @@ For **least privilege access**, use the **Application Administrator** role, whic
 
    - Navigate to the Azure Portal for your cloud environment:
      - **GCC High / DoD**: [https://portal.azure.us](https://portal.azure.us)
-     - **China 21Vianet**: [https://portal.azure.cn](https://portal.azure.cn)
    - Go to **Azure Active Directory** → **App registrations** → **New registration**
    - **Name**: Enter descriptive name (e.g., "SOAR-MSGraph-Connector")
    - **Supported account types**: "Accounts in this organizational directory only"
@@ -252,7 +250,6 @@ Test Connectivity needs at least one of these permissions:
    - **Note**: The base URL must match your selected cloud environment:
      - GCC High: `https://graph.microsoft.us`
      - DoD: `https://dod-graph.microsoft.us`
-     - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 1. **Test Process**:
 
@@ -329,7 +326,6 @@ Test Connectivity needs at least one of these permissions:
 - **Cloud Environment URLs**: The scope parameter URLs must match your selected cloud environment:
   - GCC High (default): `https://graph.microsoft.us`
   - DoD: `https://dod-graph.microsoft.us`
-  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 - When you add the scope parameter, multiple scopes are passed as space-separated values. <br>For example: `https://graph.microsoft.us/User.Read https://graph.microsoft.us/Calendars.Read` <br>This means the scopes `User.Read` and `Calendars.Read` are being requested for GCC High environment.
 
 ## User Permissions Setup
@@ -541,7 +537,6 @@ This section explains each configuration field in user-friendly terms.
 - **Note**: The base URL varies by cloud environment:
   - GCC High (default): `https://graph.microsoft.us`
   - DoD: `https://dod-graph.microsoft.us`
-  - China 21Vianet: `https://microsoftgraph.chinacloudapi.cn`
 
 ### Email Polling Settings
 
