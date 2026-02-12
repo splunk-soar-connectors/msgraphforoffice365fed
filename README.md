@@ -8,22 +8,6 @@ Minimum Product Version: 6.3.0
 
 This app connects to Office 365 national cloud deployments (US Government GCC High L4 and DoD L5) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events
 
-## Playbook Backward Compatibility
-
-- With version 3.0.0 of the connector, the 'group_id' parameter of the 'list group members' action has been removed and two new parameters are added in the same action as follows:
-
-  - **method** - Method(Group ID or Group e-mail) using which you want to list group members, by default it is **Group ID**.
-  - **identificator** - Value of group id or group e-mail based on the **method** selected.
-
-  Hence, it is requested to please update the existing playbooks by re-inserting
-  | modifying | deleting the corresponding action blocks to ensure the correct functioning of the
-  playbooks created on the earlier versions of the app.
-
-- The 'id' field of email artifact has been renamed to 'messageId'. Hence, it is requested to the
-  end-user to please update their existing playbooks by re-inserting | modifying | deleting the
-  corresponding action blocks to ensure the correct functioning of the playbooks created on the
-  earlier versions of the app.
-
 ## Prerequisites
 
 ### Azure AD Admin Role Requirements
@@ -306,7 +290,6 @@ Test Connectivity needs at least one of these permissions:
 | delete email | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
 | update email | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
 | send email | `Mail.Send` | `Mail.Send` + `Mail.ReadWrite` | ReadWrite for attachments |
-| block/unblock sender | `Mail.ReadWrite` | `Mail.ReadWrite` | Uses beta API |
 | **Folder Actions** | | | |
 | list folders | `Mail.ReadBasic` | `Mail.Read` | ReadBasic for folder list only |
 | create folder | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
@@ -332,7 +315,6 @@ Test Connectivity needs at least one of these permissions:
 **Important Notes**:
 
 - **Test Connectivity**: Always requires at least `User.Read.All` (App) or `User.Read` (Del)
-- **Beta APIs**: Block/unblock sender actions use Microsoft Graph beta endpoints
 - **Cloud Environment URLs**: The scope parameter URLs must match your selected cloud environment:
   - GCC High (default): `https://graph.microsoft.us`
   - DoD: `https://dod-graph.microsoft.us`
@@ -819,7 +801,7 @@ action_result.data.\*.start.timeZone | string | | UTC |
 action_result.data.\*.subject | string | | New event - 1 |
 action_result.data.\*.transactionId | string | | b2e47e5d-8f87-9845-c507-7be56490c432 |
 action_result.data.\*.type | string | | singleInstance |
-action_result.data.\*.webLink | string | `url` | https://outlook.office365.com/owa/?itemid=AAMkAGFmNTRhODA4LWIxMjQtNDJjYy05NDM2LWQ5MzY1MGFhMTkzYwBGAAAAAADRlY7ewL4xToKRDciQog5UBwBvUzMoUJx2S4nbgxzZWx2PAAAAAAENAABvUzMoUJx2S4nbgxzZWx2PAAEB90vfAAA%3D&exvsurl=1&path=/calendar/item |
+action_result.data.\*.webLink | string | `url` | https://outlook.office365.us/owa/?itemid=AAMkAGFmNTRhODA4LWIxMjQtNDJjYy05NDM2LWQ5MzY1MGFhMTkzYwBGAAAAAADRlY7ewL4xToKRDciQog5UBwBvUzMoUJx2S4nbgxzZWx2PAAAAAAENAABvUzMoUJx2S4nbgxzZWx2PAAEB90vfAAA%3D&exvsurl=1&path=/calendar/item |
 action_result.data.locations.\*.displayName | string | | |
 action_result.summary.events_matched | numeric | | 8 |
 action_result.message | string | | Successfully retrieved 8 events |
@@ -847,7 +829,7 @@ DATA PATH | TYPE | CONTAINS | EXAMPLE VALUES
 action_result.status | string | | success failed |
 action_result.parameter.rule_id | string | `msgoffice365 rule id` | AQAABgFGMAc= |
 action_result.parameter.user_id | string | `msgoffice365 user id` `msgoffice365 user principal name` `email` | test@testdomain.abc.com |
-action_result.data.\*.@odata.context | string | | https://graph.microsoft.com/v1.0/$metadata#users('eeb3645f-df19-47a1-8e8c-fcd234cb5f6f')/mailFolders('inbox')/messageRules/$entity |
+action_result.data.\*.@odata.context | string | | https://graph.microsoft.us/v1.0/$metadata#users('eeb3645f-df19-47a1-8e8c-fcd234cb5f6f')/mailFolders('inbox')/messageRules/$entity |
 action_result.data.\*.actions_copyToFolder | string | | AQMkAGYxNGJmOWQyLTlhMjctNGRiOS1iODU0LTA1ZWE3ZmQ3NDU3MQAuAAADeDDJKaEf4EihMWU6SZgKbAEA07XhOkNngkCkqoNfY_k-jQAF6qrTswAAAA== |
 action_result.data.\*.actions_stopProcessingRules | boolean | | True False |
 action_result.data.\*.conditions_fromAddresses_0_emailAddress_address | string | `email` | test@test.com |
@@ -1139,7 +1121,7 @@ action_result.data.\*.sentDateTime | string | | 2017-10-25T22:28:57Z |
 action_result.data.\*.subject | string | `msgoffice365 subject` | more body formats? |
 action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | Test@testdomain.abc.com |
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Test Name |
-action_result.data.\*.webLink | string | `url` | https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | `url` | https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary | string | | |
 action_result.message | string | | Successfully copied email |
 summary.total_objects | numeric | | 1 |
@@ -1209,7 +1191,7 @@ action_result.data.\*.sentDateTime | string | | 2017-10-25T22:28:57Z |
 action_result.data.\*.subject | string | `msgoffice365 subject` | more body formats? |
 action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | Test@testdomain.abc.com |
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Test Name |
-action_result.data.\*.webLink | string | `url` | https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | `url` | https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary | string | | |
 action_result.message | string | | Successfully moved email |
 summary.total_objects | numeric | | 1 |
@@ -1499,7 +1481,7 @@ action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | 
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Test Name |
 action_result.data.\*.type | string | | singleInstance |
 action_result.data.\*.vaultId | string | | ff89bab9ec1e063a0f100aa7b0ac5fbc7425ab22 |
-action_result.data.\*.webLink | string | `url` | https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEMAAAAQSl1b8BFiEmbqZql%2BJiUtwABS2DpfAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | `url` | https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEMAAAAQSl1b8BFiEmbqZql%2BJiUtwABS2DpfAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary | string | | |
 action_result.message | string | | Successfully fetched email |
 summary.total_objects | numeric | | 1 |
@@ -1715,7 +1697,7 @@ action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | 
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Test Name |
 action_result.data.\*.type | string | | singleInstance |
 action_result.data.\*.vaultId | string | `sha1` `vault id` | 719dbf72d7c0bc89d7e34306c08a0b66191902b9 |
-action_result.data.\*.webLink | string | `url` | https://outlook.office365.com/owa/?ItemID=AAMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAAAAADJbdfk%2FsdvT4wwcqie92hZBwBBKXVvwEWISZupmqX4mJS3AACEV3zJAABBKXVvwEWISZupmqX4mJS3AAFOZwS4AAA%3D&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | `url` | https://outlook.office365.us/owa/?ItemID=AAMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAAAAADJbdfk%2FsdvT4wwcqie92hZBwBBKXVvwEWISZupmqX4mJS3AACEV3zJAABBKXVvwEWISZupmqX4mJS3AAFOZwS4AAA%3D&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary.emails_matched | numeric | | 1 |
 action_result.message | string | | Emails matched: 1 |
 summary.total_objects | numeric | | 1 |
@@ -1858,7 +1840,7 @@ action_result.data.\*.sentDateTime | string | | 2023-06-19T10:09:58Z |
 action_result.data.\*.subject | string | | test html |
 action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | test@test.com |
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Ryan Edwards |
-action_result.data.\*.webLink | string | | https://outlook.office365.com/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | | https://outlook.office365.us/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary | string | | |
 action_result.message | string | | Successfully sent email |
 summary.total_objects | numeric | | 1 |
@@ -1942,7 +1924,7 @@ action_result.data.\*.sentDateTime | string | | 2023-06-19T10:09:58Z |
 action_result.data.\*.subject | string | | test html |
 action_result.data.\*.toRecipients.\*.emailAddress.address | string | `email` | test@test.com |
 action_result.data.\*.toRecipients.\*.emailAddress.name | string | | Ryan Edwards |
-action_result.data.\*.webLink | string | | https://outlook.office365.com/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem |
+action_result.data.\*.webLink | string | | https://outlook.office365.us/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem |
 action_result.summary | string | | |
 action_result.message | string | | Create time: 2017-10-05T20:19:58Z Subject: Both value are modified Sent time: 2017-10-03T21:31:20Z |
 summary.total_objects | numeric | | 1 |

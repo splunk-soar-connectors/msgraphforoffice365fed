@@ -1,19 +1,3 @@
-## Playbook Backward Compatibility
-
-- With version 3.0.0 of the connector, the 'group_id' parameter of the 'list group members' action has been removed and two new parameters are added in the same action as follows:
-
-  - **method** - Method(Group ID or Group e-mail) using which you want to list group members, by default it is **Group ID**.
-  - **identificator** - Value of group id or group e-mail based on the **method** selected.
-
-  Hence, it is requested to please update the existing playbooks by re-inserting
-  | modifying | deleting the corresponding action blocks to ensure the correct functioning of the
-  playbooks created on the earlier versions of the app.
-
-- The 'id' field of email artifact has been renamed to 'messageId'. Hence, it is requested to the
-  end-user to please update their existing playbooks by re-inserting | modifying | deleting the
-  corresponding action blocks to ensure the correct functioning of the playbooks created on the
-  earlier versions of the app.
-
 ## Prerequisites
 
 ### Azure AD Admin Role Requirements
@@ -296,7 +280,6 @@ Test Connectivity needs at least one of these permissions:
 | delete email | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
 | update email | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
 | send email | `Mail.Send` | `Mail.Send` + `Mail.ReadWrite` | ReadWrite for attachments |
-| block/unblock sender | `Mail.ReadWrite` | `Mail.ReadWrite` | Uses beta API |
 | **Folder Actions** | | | |
 | list folders | `Mail.ReadBasic` | `Mail.Read` | ReadBasic for folder list only |
 | create folder | `Mail.ReadWrite` | `Mail.ReadWrite` | Requires write permissions |
@@ -322,7 +305,6 @@ Test Connectivity needs at least one of these permissions:
 **Important Notes**:
 
 - **Test Connectivity**: Always requires at least `User.Read.All` (App) or `User.Read` (Del)
-- **Beta APIs**: Block/unblock sender actions use Microsoft Graph beta endpoints
 - **Cloud Environment URLs**: The scope parameter URLs must match your selected cloud environment:
   - GCC High (default): `https://graph.microsoft.us`
   - DoD: `https://dod-graph.microsoft.us`

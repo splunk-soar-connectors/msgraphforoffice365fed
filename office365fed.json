@@ -1054,7 +1054,7 @@
                         "url"
                     ],
                     "example_values": [
-                        "https://outlook.office365.com/owa/?itemid=AAMkAGFmNTRhODA4LWIxMjQtNDJjYy05NDM2LWQ5MzY1MGFhMTkzYwBGAAAAAADRlY7ewL4xToKRDciQog5UBwBvUzMoUJx2S4nbgxzZWx2PAAAAAAENAABvUzMoUJx2S4nbgxzZWx2PAAEB90vfAAA%3D&exvsurl=1&path=/calendar/item"
+                        "https://outlook.office365.us/owa/?itemid=AAMkAGFmNTRhODA4LWIxMjQtNDJjYy05NDM2LWQ5MzY1MGFhMTkzYwBGAAAAAADRlY7ewL4xToKRDciQog5UBwBvUzMoUJx2S4nbgxzZWx2PAAAAAAENAABvUzMoUJx2S4nbgxzZWx2PAAEB90vfAAA%3D&exvsurl=1&path=/calendar/item"
                     ]
                 },
                 {
@@ -1164,7 +1164,7 @@
                     "data_path": "action_result.data.*.@odata.context",
                     "data_type": "string",
                     "example_values": [
-                        "https://graph.microsoft.com/v1.0/$metadata#users('eeb3645f-df19-47a1-8e8c-fcd234cb5f6f')/mailFolders('inbox')/messageRules/$entity"
+                        "https://graph.microsoft.us/v1.0/$metadata#users('eeb3645f-df19-47a1-8e8c-fcd234cb5f6f')/mailFolders('inbox')/messageRules/$entity"
                     ]
                 },
                 {
@@ -2712,7 +2712,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
                     ],
                     "contains": [
                         "url"
@@ -3148,7 +3148,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEbAAAAQSl1b8BFiEmbqZql%2BJiUtwABUH%2FstgAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
                     ],
                     "contains": [
                         "url"
@@ -4949,7 +4949,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEMAAAAQSl1b8BFiEmbqZql%2BJiUtwABS2DpfAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AQMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAADyW3X5P7Hb0%2BMMHKonvdoWQcAQSl1b8BFiEmbqZql%2BJiUtwAAAgEMAAAAQSl1b8BFiEmbqZql%2BJiUtwABS2DpfAAAAA%3D%3D&exvsurl=1&viewmodel=ReadMessageItem"
                     ],
                     "contains": [
                         "url"
@@ -6291,7 +6291,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AAMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAAAAADJbdfk%2FsdvT4wwcqie92hZBwBBKXVvwEWISZupmqX4mJS3AACEV3zJAABBKXVvwEWISZupmqX4mJS3AAFOZwS4AAA%3D&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AAMkADU3NDk3MzJlLTY3MDQtNDE2Ny1iZDk1LTc4YjEwYzhmZDc5YQBGAAAAAADJbdfk%2FsdvT4wwcqie92hZBwBBKXVvwEWISZupmqX4mJS3AACEV3zJAABBKXVvwEWISZupmqX4mJS3AAFOZwS4AAA%3D&exvsurl=1&viewmodel=ReadMessageItem"
                     ],
                     "contains": [
                         "url"
@@ -7079,7 +7079,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem"
                     ]
                 },
                 {
@@ -7489,7 +7489,7 @@
                     "data_path": "action_result.data.*.webLink",
                     "data_type": "string",
                     "example_values": [
-                        "https://outlook.office365.com/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem"
+                        "https://outlook.office365.us/owa/?ItemID=AAkALgAAAAAAHYQDEapmEc2byACqAC%2FEWg0A07XhOkNngkCkqoNfY%2Bk%2FjQAGNNQOowAA&exvsurl=1&viewmodel=ReadMessageItem"
                     ]
                 },
                 {
