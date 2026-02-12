@@ -6,7 +6,7 @@ Product Vendor: Microsoft <br>
 Product Name: Office 365 (MS Graph) <br>
 Minimum Product Version: 6.3.0
 
-This app connects to Office 365 national cloud deployments (US Government GCC High L4, DoD L5, and China 21Vianet) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events
+This app connects to Office 365 national cloud deployments (US Government GCC High L4 and DoD L5) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events
 
 ## Playbook Backward Compatibility
 
