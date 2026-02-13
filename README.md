@@ -1,7 +1,7 @@
 # MS Graph for Office 365 - Federal
 
 Publisher: Splunk <br>
-Connector Version: 1.0.1 <br>
+Connector Version: 1.0.0 <br>
 Product Vendor: Microsoft <br>
 Product Name: Office 365 (MS Graph) <br>
 Minimum Product Version: 6.3.0
