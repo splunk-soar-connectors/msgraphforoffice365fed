@@ -1,3 +1,1 @@
 **Unreleased**
-
-* update product name in json file to differentiate it from global msgraphforoffice365 app.

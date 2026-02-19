@@ -9,7 +9,7 @@
     "product_name": "Office 365 (MS Graph) - Federal",
     "product_version_regex": ".*",
     "publisher": "Splunk",
-    "app_version": "1.0.0",
+    "app_version": "1.0.1",
     "contributors": [
         {
             "name": "Athreya K M"
@@ -19,7 +19,7 @@
         }
     ],
     "license": "Copyright (c) 2017-2026 Splunk Inc.",
-    "utctime_updated": "2026-02-13T13:58:26.337847Z",
+    "utctime_updated": "2026-02-19T17:15:53.381627Z",
     "package_name": "phantom_msgraphforoffice365fed",
     "main_module": "office365fed_connector.py",
     "min_phantom_version": "6.3.0",
