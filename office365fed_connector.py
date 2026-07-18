@@ -49,6 +49,7 @@ TC_FILE = "oauth_task.out"
 SERVER_TOKEN_URL = "{base_url}/{tenant}/oauth2/v2.0/token"
 MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
+MSGOFFICE365_MAX_PAGINATION_PAGES = 1000
 
 CLOUD_ENVIRONMENTS = {
     "US Gov L4 (GCC High)": {
@@ -70,6 +71,23 @@ KNOWN_GRAPH_HOSTS = {
 def _quote_path_segment(value):
     """Encode a caller-controlled value as one Microsoft Graph path segment."""
     return urllib.parse.quote(str(value), safe="")
+
+
+def _is_expected_graph_url(url, expected_base_url):
+    """Return whether an absolute URL targets the configured Graph origin."""
+    try:
+        candidate = urllib.parse.urlsplit(str(url))
+        expected = urllib.parse.urlsplit(str(expected_base_url))
+        port = candidate.port
+    except ValueError:
+        return False
+    return (
+        candidate.scheme == "https"
+        and candidate.hostname == expected.hostname
+        and port is None
+        and not candidate.username
+        and not candidate.password
+    )
 
 
 class ReturnException(Exception):
@@ -774,6 +792,14 @@ class Office365Connector(BaseConnector):
         beta=False,
     ):
         if nextLink:
+            if not _is_expected_graph_url(nextLink, self._graph_base_url):
+                return (
+                    action_result.set_status(
+                        phantom.APP_ERROR,
+                        "Refusing to follow a Microsoft Graph pagination URL with an unexpected origin",
+                    ),
+                    None,
+                )
             url = nextLink
         else:
             if not beta:
@@ -2737,6 +2763,7 @@ class Office365Connector(BaseConnector):
 
         list_items = list()
         next_link = None
+        followed_links = set()
         headers = {}
 
         # maximum page size
@@ -2757,7 +2784,7 @@ class Office365Connector(BaseConnector):
             params["$count"] = "true"
             headers["ConsistencyLevel"] = "eventual"
 
-        while True:
+        for _ in range(MSGOFFICE365_MAX_PAGINATION_PAGES):
             ret_val, response = self._make_rest_call_helper(action_result, endpoint, nextLink=next_link, params=params, headers=headers)
 
             if phantom.is_fail(ret_val):
@@ -2772,8 +2799,25 @@ class Office365Connector(BaseConnector):
             next_link = response.get("@odata.nextLink")
             if not next_link:
                 break
+            if next_link in followed_links:
+                return (
+                    action_result.set_status(
+                        phantom.APP_ERROR,
+                        "Microsoft Graph pagination returned a repeated nextLink",
+                    ),
+                    None,
+                )
+            followed_links.add(next_link)
 
             params = None
+        else:
+            return (
+                action_result.set_status(
+                    phantom.APP_ERROR,
+                    f"Microsoft Graph pagination exceeded {MSGOFFICE365_MAX_PAGINATION_PAGES} pages",
+                ),
+                None,
+            )
 
         return phantom.APP_SUCCESS, list_items
 
