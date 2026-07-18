@@ -52,6 +52,7 @@ SERVER_TOKEN_URL = "{base_url}/{tenant}/oauth2/v2.0/token"
 MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
 MSGOFFICE365_MAX_PAGINATION_PAGES = 1000
+MSGOFFICE365_MAX_POLL_CYCLES = 100
 
 CLOUD_ENVIRONMENTS = {
     "US Gov L4 (GCC High)": {
@@ -2117,6 +2118,8 @@ class Office365Connector(BaseConnector):
         :return: limit: next cycle pagination limit, total_ingested: Total ingested emails till now
         """
         total_ingested_current_cycle = limit - self._duplicate_count
+        if total_ingested_current_cycle <= 0:
+            return 0, total_ingested
         total_ingested += total_ingested_current_cycle
 
         remaining_count = max_emails - total_ingested
@@ -2202,12 +2205,12 @@ class Office365Connector(BaseConnector):
         cur_limit = max_emails
         total_ingested = 0
 
-        # If the ingestion manner is set for the latest emails, then the 0th index email is the latest
-        # in the list returned, else the last email is the latest. This will be used to store the
-        # last modified time in the state file
-        email_index = 0 if ingest_manner == "latest first" else -1
+        # For oldest-first, the final item is the newest processed email and advances the
+        # checkpoint. For latest-first, it is the oldest item in the capped batch and prevents
+        # the checkpoint from advancing past unprocessed mail.
+        email_index = -1
 
-        while True:
+        for _ in range(MSGOFFICE365_MAX_POLL_CYCLES):
             self._duplicate_count = 0
             ret_val, emails = self._paginator(action_result, endpoint, limit=cur_limit, params=params)
             if phantom.is_fail(ret_val):
@@ -2216,7 +2219,7 @@ class Office365Connector(BaseConnector):
             if not emails:
                 return action_result.set_status(phantom.APP_SUCCESS, MSGOFFICE365_NO_DATA_FOUND)
 
-            failed_email_ids = 0
+            failed_email_ids = []
             total_emails = len(emails)
 
             self.save_progress(f"Total emails fetched: {total_emails}")
@@ -2228,18 +2231,18 @@ class Office365Connector(BaseConnector):
                     self.send_progress("Processing email # {} with ID ending in: {}".format(index + 1, email["id"][-10:]))
                     ret_val = self._process_email_data(config, action_result, endpoint, email)
                     if phantom.is_fail(ret_val):
-                        failed_email_ids += 1
+                        failed_email_ids.append(email.get("id"))
 
                         self.debug_print("Error occurred while processing email ID: {}. {}".format(email.get("id"), action_result.get_message()))
                 except Exception as e:
-                    failed_email_ids += 1
+                    failed_email_ids.append(email.get("id"))
                     error_msg = _get_error_msg_from_exception(e, self)
                     self.debug_print(f"Exception occurred while processing email ID: {email.get('id')}. {error_msg}")
 
-            if failed_email_ids == total_emails:
+            if failed_email_ids:
                 return action_result.set_status(
                     phantom.APP_ERROR,
-                    "Error occurred while processing all the email IDs",
+                    f"Failed to process {len(failed_email_ids)} of {total_emails} fetched emails; the polling checkpoint was not advanced",
                 )
 
             if not self.is_poll_now():
@@ -2259,6 +2262,11 @@ class Office365Connector(BaseConnector):
                     break
             else:
                 break
+        else:
+            return action_result.set_status(
+                phantom.APP_ERROR,
+                f"Polling exceeded the safety limit of {MSGOFFICE365_MAX_POLL_CYCLES} ingestion cycles",
+            )
 
         # Update the 'first_run' value only if the ingestion gets successfully completed
         if not self.is_poll_now() and self._state.get("first_run", True):
