@@ -103,6 +103,21 @@ def _parse_oauth_state(value):
     return asset_id, flow_nonce
 
 
+def _is_token_response(response, expected_entra_base_url):
+    """Return whether a response came from the configured OAuth token endpoint."""
+    try:
+        url = urllib.parse.urlsplit(str(response.url))
+        expected = urllib.parse.urlsplit(str(expected_entra_base_url))
+    except (AttributeError, ValueError):
+        return False
+    return (
+        url.scheme == "https"
+        and url.hostname == expected.hostname
+        and url.port is None
+        and url.path.rstrip("/").endswith("/oauth2/v2.0/token")
+    )
+
+
 class ReturnException(Exception):
     pass
 
@@ -619,8 +634,11 @@ class Office365Connector(BaseConnector):
         # store the r_text in debug data, it will get dumped in the logs if the action fails
         if hasattr(action_result, "add_debug_data"):
             action_result.add_debug_data({"r_status_code": r.status_code})
-            action_result.add_debug_data({"r_text": r.text})
-            action_result.add_debug_data({"r_headers": r.headers})
+            if _is_token_response(r, self._entra_base_url):
+                action_result.add_debug_data({"r_text": "<OAuth token response redacted>"})
+            else:
+                action_result.add_debug_data({"r_text": r.text})
+                action_result.add_debug_data({"r_headers": r.headers})
 
         # Process each 'Content-Type' of response separately
 
