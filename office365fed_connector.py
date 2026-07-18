@@ -112,10 +112,7 @@ def _is_token_response(response, expected_entra_base_url):
     except (AttributeError, ValueError):
         return False
     return (
-        url.scheme == "https"
-        and url.hostname == expected.hostname
-        and url.port is None
-        and url.path.rstrip("/").endswith("/oauth2/v2.0/token")
+        url.scheme == "https" and url.hostname == expected.hostname and url.port is None and url.path.rstrip("/").endswith("/oauth2/v2.0/token")
     )
 
 
@@ -2716,7 +2713,7 @@ class Office365Connector(BaseConnector):
                 ),
                 None,
             )
-        
+
         ret_val, attachment_id = self._upload_small_attachment(action_result, vault_info, user_id, message_id)
 
         return ret_val, attachment_id
