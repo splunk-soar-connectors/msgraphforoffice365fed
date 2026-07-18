@@ -12,9 +12,6 @@
 # the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 # either express or implied. See the License for the specific language governing permissions
 # and limitations under the License.
-import copy
-
-
 def get_ctx_result(provides, result):
     """Function that parses data.
 
@@ -23,32 +20,29 @@ def get_ctx_result(provides, result):
     :return: response data
     """
 
-    file_attachment = []
-    item_attachment = []
-    reference_attachment = []
-    other_attachment = []
-
     ctx_result = {}
 
     param = result.get_param()
     summary = result.get_summary()
-    data = copy.deepcopy(result.get_data())
+    result_data = result.get_data()
 
     ctx_result["param"] = param
 
     if summary:
         ctx_result["summary"] = summary
     ctx_result["action"] = provides
-    if not data:
+    if not result_data:
         ctx_result["data"] = {}
         return ctx_result
 
     if provides == "get email":
-        for result in data:
-            attachments = result.get("attachments", [])
-
-            if not attachments:
-                break
+        rendered_data = []
+        for data_item in result_data:
+            file_attachment = []
+            item_attachment = []
+            reference_attachment = []
+            other_attachment = []
+            attachments = data_item.get("attachments", [])
 
             for attachment in attachments:
                 attachment_type = attachment.get("attachmentType", "")
@@ -68,9 +62,10 @@ def get_ctx_result(provides, result):
                 "other_attachment": other_attachment,
             }
 
-            result.update({"attachment_data": attachment_data})
+            rendered_data.append({**data_item, "attachment_data": attachment_data})
+        result_data = rendered_data
 
-    ctx_result["data"] = data
+    ctx_result["data"] = result_data
 
     return ctx_result
 
