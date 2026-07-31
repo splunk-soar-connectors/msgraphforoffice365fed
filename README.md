@@ -3,7 +3,7 @@
 Publisher: Splunk <br>
 Connector Version: 1.0.1 <br>
 Product Vendor: Microsoft <br>
-Product Name: Office 365 (MS Graph) <br>
+Product Name: Office 365 (MS Graph) - Federal <br>
 Minimum Product Version: 6.3.0
 
 This app connects to Office 365 national cloud deployments (US Government GCC High L4 and DoD L5) using the Microsoft Graph API to support investigative and generic actions related to email messages and calendar events
@@ -573,7 +573,7 @@ This section explains each configuration field in user-friendly terms.
 
 ### Configuration variables
 
-This table lists the configuration variables required to operate MS Graph for Office 365 - Federal. These variables are specified when configuring a Office 365 (MS Graph) asset in Splunk SOAR.
+This table lists the configuration variables required to operate MS Graph for Office 365 - Federal. These variables are specified when configuring a Office 365 (MS Graph) - Federal asset in Splunk SOAR.
 
 VARIABLE | REQUIRED | TYPE | DESCRIPTION
 -------- | -------- | ---- | -----------
