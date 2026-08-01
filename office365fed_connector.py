@@ -53,6 +53,7 @@ MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
 MSGOFFICE365_MAX_PAGINATION_PAGES = 1000
 MSGOFFICE365_MAX_POLL_CYCLES = 100
+MSGOFFICE365_MAX_ATTACHMENT_DEPTH = 10
 
 CLOUD_ENVIRONMENTS = {
     "US Gov L4 (GCC High)": {
@@ -1127,6 +1128,7 @@ class Office365Connector(BaseConnector):
         attachments,
         container_id,
         first_time=False,
+        depth=0,
     ):
         """
         Extract attachments.
@@ -1138,8 +1140,15 @@ class Office365Connector(BaseConnector):
         :param attachments: attachments list to process
         :param container_id: container ID
         :param first_time: boolean flag to specify if we want to expand the item attachment
+        :param depth: current nested item-attachment depth
         :return: status phantom.APP_ERROR/phantom.APP_SUCCESS with status message
         """
+        if depth >= MSGOFFICE365_MAX_ATTACHMENT_DEPTH:
+            return action_result.set_status(
+                phantom.APP_ERROR,
+                f"Nested item attachments exceeded the maximum depth of {MSGOFFICE365_MAX_ATTACHMENT_DEPTH}",
+            )
+
         for attachment in attachments:
             if attachment.get("@odata.type") == "#microsoft.graph.itemAttachment":
                 # We need to expand the item attachment only once
@@ -1167,9 +1176,11 @@ class Office365Connector(BaseConnector):
                         action_result,
                         item_attachments,
                         container_id,
+                        depth=depth + 1,
                     )
                     if phantom.is_fail(ret_val):
                         self.debug_print("Error while processing nested attachments, for attachment id: {}".format(attachment["id"]))
+                        return action_result.get_status()
 
                 if first_time:
                     # Fetch the rfc822 content for the item attachment
