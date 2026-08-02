@@ -25,7 +25,7 @@ def _function_source(name):
     tree = ast.parse(source)
     function = next(
         node
-        for node in tree.body
+        for node in ast.walk(tree)
         if isinstance(node, ast.FunctionDef) and node.name == name
     )
     return ast.get_source_segment(source, function)
@@ -75,6 +75,27 @@ class ValidationFollowupTests(unittest.TestCase):
         source = CONNECTOR.read_text()
         self.assertIn('"state_nonce": flow_nonce', source)
         self.assertIn('url_to_show = f"{app_rest_url}/start_oauth?{start_query}"', source)
+
+    def test_polling_never_advances_past_a_failed_email(self):
+        source = _function_source("_handle_on_poll")
+        self.assertIn('self._state["failed_email_ids"] = sorted(', source)
+        self.assertIn("the polling checkpoint was not advanced", source)
+        self.assertIn('self._state["last_time"] = last_time', source)
+        self.assertLess(
+            source.index("the polling checkpoint was not advanced"),
+            source.index('self._state["last_time"] = last_time'),
+        )
+
+    def test_polling_retries_failed_existing_containers(self):
+        source = _function_source("_process_email_data")
+        self.assertIn("retry_existing=False", source)
+        self.assertIn("if retry_existing:", source)
+        self.assertIn("if not retry_existing:", source)
+
+    def test_latest_first_is_processed_in_lossless_order(self):
+        source = _function_source("_handle_on_poll")
+        self.assertIn('order = "asc"', source)
+        self.assertNotIn('else "desc"', source)
 
 
 if __name__ == "__main__":
