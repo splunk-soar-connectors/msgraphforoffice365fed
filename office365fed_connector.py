@@ -74,7 +74,16 @@ KNOWN_GRAPH_HOSTS = {
 
 def _quote_path_segment(value):
     """Encode a caller-controlled value as one Microsoft Graph path segment."""
-    return urllib.parse.quote(str(value), safe="")
+    raw_value = str(value)
+    canonical_value = raw_value
+    for _ in range(5):
+        decoded_value = urllib.parse.unquote(canonical_value)
+        if decoded_value == canonical_value:
+            break
+        canonical_value = decoded_value
+    if canonical_value in {".", ".."}:
+        raise ValueError("Microsoft Graph path identifiers must not be dot segments")
+    return urllib.parse.quote(raw_value, safe="")
 
 
 def _is_expected_graph_url(url, expected_base_url):
