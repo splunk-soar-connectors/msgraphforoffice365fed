@@ -23,22 +23,14 @@ CONNECTOR = Path(__file__).resolve().parents[1] / "office365fed_connector.py"
 def _function_source(name):
     source = CONNECTOR.read_text()
     tree = ast.parse(source)
-    function = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and node.name == name
-    )
+    function = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == name)
     return ast.get_source_segment(source, function)
 
 
 def _load_quote_helper():
     source = CONNECTOR.read_text()
     tree = ast.parse(source)
-    function = next(
-        node
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "_quote_path_segment"
-    )
+    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_quote_path_segment")
     namespace = {"urllib": urllib}
     exec(
         compile(
@@ -55,9 +47,7 @@ class ValidationFollowupTests(unittest.TestCase):
     def test_path_helper_rejects_encoded_dot_segments(self):
         helper = _load_quote_helper()
         for value in (".", "..", "%2e", "%2E%2e", "%252e%252e"):
-            with self.subTest(value=value), self.assertRaisesRegex(
-                ValueError, "must not be dot segments"
-            ):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "must not be dot segments"):
                 helper(value)
 
     def test_path_helper_preserves_opaque_identifiers(self):

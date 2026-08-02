@@ -1285,9 +1285,7 @@ class Office365Connector(BaseConnector):
 
         return phantom.APP_SUCCESS
 
-    def _process_email_data(
-        self, config, action_result, endpoint, email, retry_existing=False
-    ):
+    def _process_email_data(self, config, action_result, endpoint, email, retry_existing=False):
         """
         Process email data.
 
@@ -1313,17 +1311,13 @@ class Office365Connector(BaseConnector):
         if MSGOFFICE365_DUPLICATE_CONTAINER_FOUND_MSG in msg.lower():
             self.debug_print("Duplicate container found")
             if retry_existing:
-                self.debug_print(
-                    "Retrying artifact ingestion for a previously failed email"
-                )
+                self.debug_print("Retrying artifact ingestion for a previously failed email")
             else:
                 self._duplicate_count += 1
 
             # Prevent further processing if the email is not modified
             if not retry_existing:
-                ret_val, container_info, status_code = self.get_container_info(
-                    container_id=container_id
-                )
+                ret_val, container_info, status_code = self.get_container_info(container_id=container_id)
                 if phantom.is_fail(ret_val):
                     return action_result.set_status(
                         phantom.APP_ERROR,
@@ -1331,17 +1325,13 @@ class Office365Connector(BaseConnector):
                     )
 
                 if container_info.get("description", "") == container_description:
-                    msg = "Email ID: {} has not been modified. Hence, skipping the artifact ingestion.".format(
-                        email["id"]
-                    )
+                    msg = "Email ID: {} has not been modified. Hence, skipping the artifact ingestion.".format(email["id"])
                     self.debug_print(msg)
                     return action_result.set_status(phantom.APP_SUCCESS, msg)
 
                 # Update the container's description and continue
                 self.debug_print("Updating container's description")
-                ret_val = self._update_container(
-                    action_result, container_id, container
-                )
+                ret_val = self._update_container(action_result, container_id, container)
                 if phantom.is_fail(ret_val):
                     return action_result.get_status()
 
@@ -2234,9 +2224,7 @@ class Office365Connector(BaseConnector):
 
         endpoint += "/messages"
         if ingest_manner != "oldest first":
-            self.save_progress(
-                "Latest-first polling is processed oldest-first to preserve the complete mailbox backlog"
-            )
+            self.save_progress("Latest-first polling is processed oldest-first to preserve the complete mailbox backlog")
         order = "asc"
 
         params = {"$orderBy": f"lastModifiedDateTime {order}"}
@@ -2263,11 +2251,7 @@ class Office365Connector(BaseConnector):
             if not emails:
                 return action_result.set_status(phantom.APP_SUCCESS, MSGOFFICE365_NO_DATA_FOUND)
 
-            pending_failed_email_ids = {
-                str(email_id)
-                for email_id in self._state.get("failed_email_ids", [])
-                if email_id
-            }
+            pending_failed_email_ids = {str(email_id) for email_id in self._state.get("failed_email_ids", []) if email_id}
             failed_email_ids = []
             total_emails = len(emails)
 
@@ -3397,9 +3381,7 @@ class Office365Connector(BaseConnector):
 
         # The URL that the user should open in a different tab.
         # This is pointing to a REST endpoint that points to the app
-        start_query = urllib.parse.urlencode(
-            {"asset_id": self._asset_id, "state_nonce": flow_nonce}
-        )
+        start_query = urllib.parse.urlencode({"asset_id": self._asset_id, "state_nonce": flow_nonce})
         url_to_show = f"{app_rest_url}/start_oauth?{start_query}"
 
         # Save the state, will be used by the request handler
