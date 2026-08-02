@@ -390,6 +390,15 @@ def _handle_oauth_start(request, path_parts):
             status=400,
         )
 
+    presented_nonce = request.GET.get("state_nonce", "")
+    stored_nonce = str(state.get("flow_nonce") or "")
+    if not stored_nonce or not hmac.compare_digest(stored_nonce, presented_nonce):
+        return HttpResponse(
+            "ERROR: OAuth state did not match the pending authorization flow",
+            content_type="text/plain",
+            status=400,
+        )
+
     # get the url to point to the authorize url of OAuth
     admin_consent_url = state.get("admin_consent_url")
 
@@ -3349,7 +3358,10 @@ class Office365Connector(BaseConnector):
 
         # The URL that the user should open in a different tab.
         # This is pointing to a REST endpoint that points to the app
-        url_to_show = f"{app_rest_url}/start_oauth?asset_id={self._asset_id}&"
+        start_query = urllib.parse.urlencode(
+            {"asset_id": self._asset_id, "state_nonce": flow_nonce}
+        )
+        url_to_show = f"{app_rest_url}/start_oauth?{start_query}"
 
         # Save the state, will be used by the request handler
         _save_app_state(app_state, self._asset_id, self)

@@ -66,6 +66,16 @@ class ValidationFollowupTests(unittest.TestCase):
             "user%2Fname%40example.com",
         )
 
+    def test_oauth_start_requires_the_pending_flow_nonce(self):
+        source = _function_source("_handle_oauth_start")
+        self.assertIn('request.GET.get("state_nonce", "")', source)
+        self.assertIn("hmac.compare_digest(stored_nonce, presented_nonce)", source)
+
+    def test_oauth_start_link_carries_the_pending_flow_nonce(self):
+        source = CONNECTOR.read_text()
+        self.assertIn('"state_nonce": flow_nonce', source)
+        self.assertIn('url_to_show = f"{app_rest_url}/start_oauth?{start_query}"', source)
+
 
 if __name__ == "__main__":
     unittest.main()
