@@ -53,6 +53,7 @@ MSGOFFICE365_AUTHORITY_URL = "{base_url}/{tenant}"
 MAX_END_OFFSET_VAL = 2147483646
 MSGOFFICE365_MAX_PAGINATION_PAGES = 1000
 MSGOFFICE365_MAX_POLL_CYCLES = 100
+MSGOFFICE365_MAX_ATTACHMENT_DEPTH = 10
 
 CLOUD_ENVIRONMENTS = {
     "US Gov L4 (GCC High)": {
@@ -73,7 +74,16 @@ KNOWN_GRAPH_HOSTS = {
 
 def _quote_path_segment(value):
     """Encode a caller-controlled value as one Microsoft Graph path segment."""
-    return urllib.parse.quote(str(value), safe="")
+    raw_value = str(value)
+    canonical_value = raw_value
+    for _ in range(5):
+        decoded_value = urllib.parse.unquote(canonical_value)
+        if decoded_value == canonical_value:
+            break
+        canonical_value = decoded_value
+    if canonical_value in {".", ".."}:
+        raise ValueError("Microsoft Graph path identifiers must not be dot segments")
+    return urllib.parse.quote(raw_value, safe="")
 
 
 def _is_expected_graph_url(url, expected_base_url):
@@ -376,6 +386,15 @@ def _handle_oauth_start(request, path_parts):
     if not state:
         return HttpResponse(
             "ERROR: The asset ID is invalid or an error occurred while reading the state file",
+            content_type="text/plain",
+            status=400,
+        )
+
+    presented_nonce = request.GET.get("state_nonce", "")
+    stored_nonce = str(state.get("flow_nonce") or "")
+    if not stored_nonce or not hmac.compare_digest(stored_nonce, presented_nonce):
+        return HttpResponse(
+            "ERROR: OAuth state did not match the pending authorization flow",
             content_type="text/plain",
             status=400,
         )
@@ -1127,6 +1146,7 @@ class Office365Connector(BaseConnector):
         attachments,
         container_id,
         first_time=False,
+        depth=0,
     ):
         """
         Extract attachments.
@@ -1138,8 +1158,15 @@ class Office365Connector(BaseConnector):
         :param attachments: attachments list to process
         :param container_id: container ID
         :param first_time: boolean flag to specify if we want to expand the item attachment
+        :param depth: current nested item-attachment depth
         :return: status phantom.APP_ERROR/phantom.APP_SUCCESS with status message
         """
+        if depth >= MSGOFFICE365_MAX_ATTACHMENT_DEPTH:
+            return action_result.set_status(
+                phantom.APP_ERROR,
+                f"Nested item attachments exceeded the maximum depth of {MSGOFFICE365_MAX_ATTACHMENT_DEPTH}",
+            )
+
         for attachment in attachments:
             if attachment.get("@odata.type") == "#microsoft.graph.itemAttachment":
                 # We need to expand the item attachment only once
@@ -1167,9 +1194,11 @@ class Office365Connector(BaseConnector):
                         action_result,
                         item_attachments,
                         container_id,
+                        depth=depth + 1,
                     )
                     if phantom.is_fail(ret_val):
                         self.debug_print("Error while processing nested attachments, for attachment id: {}".format(attachment["id"]))
+                        return action_result.get_status()
 
                 if first_time:
                     # Fetch the rfc822 content for the item attachment
@@ -1256,7 +1285,7 @@ class Office365Connector(BaseConnector):
 
         return phantom.APP_SUCCESS
 
-    def _process_email_data(self, config, action_result, endpoint, email):
+    def _process_email_data(self, config, action_result, endpoint, email, retry_existing=False):
         """
         Process email data.
 
@@ -1281,21 +1310,25 @@ class Office365Connector(BaseConnector):
 
         if MSGOFFICE365_DUPLICATE_CONTAINER_FOUND_MSG in msg.lower():
             self.debug_print("Duplicate container found")
-            self._duplicate_count += 1
+            if retry_existing:
+                self.debug_print("Retrying artifact ingestion for a previously failed email")
+            else:
+                self._duplicate_count += 1
 
             # Prevent further processing if the email is not modified
-            ret_val, container_info, status_code = self.get_container_info(container_id=container_id)
-            if phantom.is_fail(ret_val):
-                return action_result.set_status(
-                    phantom.APP_ERROR,
-                    f"Status Code: {status_code}. Error occurred while fetching the container info for container ID: {container_id}",
-                )
+            if not retry_existing:
+                ret_val, container_info, status_code = self.get_container_info(container_id=container_id)
+                if phantom.is_fail(ret_val):
+                    return action_result.set_status(
+                        phantom.APP_ERROR,
+                        f"Status Code: {status_code}. Error occurred while fetching the container info for container ID: {container_id}",
+                    )
 
-            if container_info.get("description", "") == container_description:
-                msg = "Email ID: {} has not been modified. Hence, skipping the artifact ingestion.".format(email["id"])
-                self.debug_print(msg)
-                return action_result.set_status(phantom.APP_SUCCESS, msg)
-            else:
+                if container_info.get("description", "") == container_description:
+                    msg = "Email ID: {} has not been modified. Hence, skipping the artifact ingestion.".format(email["id"])
+                    self.debug_print(msg)
+                    return action_result.set_status(phantom.APP_SUCCESS, msg)
+
                 # Update the container's description and continue
                 self.debug_print("Updating container's description")
                 ret_val = self._update_container(action_result, container_id, container)
@@ -2190,7 +2223,9 @@ class Office365Connector(BaseConnector):
             endpoint += f"/mailFolders/{_quote_path_segment(folder)}"
 
         endpoint += "/messages"
-        order = "asc" if ingest_manner == "oldest first" else "desc"
+        if ingest_manner != "oldest first":
+            self.save_progress("Latest-first polling is processed oldest-first to preserve the complete mailbox backlog")
+        order = "asc"
 
         params = {"$orderBy": f"lastModifiedDateTime {order}"}
 
@@ -2216,6 +2251,7 @@ class Office365Connector(BaseConnector):
             if not emails:
                 return action_result.set_status(phantom.APP_SUCCESS, MSGOFFICE365_NO_DATA_FOUND)
 
+            pending_failed_email_ids = {str(email_id) for email_id in self._state.get("failed_email_ids", []) if email_id}
             failed_email_ids = []
             total_emails = len(emails)
 
@@ -2226,21 +2262,37 @@ class Office365Connector(BaseConnector):
             for index, email in enumerate(emails):
                 try:
                     self.send_progress("Processing email # {} with ID ending in: {}".format(index + 1, email["id"][-10:]))
-                    ret_val = self._process_email_data(config, action_result, endpoint, email)
+                    email_id = str(email.get("id") or "")
+                    ret_val = self._process_email_data(
+                        config,
+                        action_result,
+                        endpoint,
+                        email,
+                        retry_existing=email_id in pending_failed_email_ids,
+                    )
                     if phantom.is_fail(ret_val):
-                        failed_email_ids.append(email.get("id"))
+                        failed_email_ids.append(email_id)
+                        pending_failed_email_ids.add(email_id)
 
                         self.debug_print("Error occurred while processing email ID: {}. {}".format(email.get("id"), action_result.get_message()))
+                    else:
+                        pending_failed_email_ids.discard(email_id)
                 except Exception as e:
-                    failed_email_ids.append(email.get("id"))
+                    email_id = str(email.get("id") or "")
+                    failed_email_ids.append(email_id)
+                    pending_failed_email_ids.add(email_id)
                     error_msg = _get_error_msg_from_exception(e, self)
                     self.debug_print(f"Exception occurred while processing email ID: {email.get('id')}. {error_msg}")
 
-            if failed_email_ids:
+            if pending_failed_email_ids:
+                self._state["failed_email_ids"] = sorted(pending_failed_email_ids)
+                self.save_state(deepcopy(self._state))
                 return action_result.set_status(
                     phantom.APP_ERROR,
-                    f"Failed to process {len(failed_email_ids)} of {total_emails} fetched emails; the polling checkpoint was not advanced",
+                    f"{len(pending_failed_email_ids)} email(s) remain pending after processing; the polling checkpoint was not advanced",
                 )
+
+            self._state.pop("failed_email_ids", None)
 
             if not self.is_poll_now():
                 last_time = datetime.strptime(emails[email_index]["lastModifiedDateTime"], O365_TIME_FORMAT).strftime(O365_TIME_FORMAT)
@@ -3329,7 +3381,8 @@ class Office365Connector(BaseConnector):
 
         # The URL that the user should open in a different tab.
         # This is pointing to a REST endpoint that points to the app
-        url_to_show = f"{app_rest_url}/start_oauth?asset_id={self._asset_id}&"
+        start_query = urllib.parse.urlencode({"asset_id": self._asset_id, "state_nonce": flow_nonce})
+        url_to_show = f"{app_rest_url}/start_oauth?{start_query}"
 
         # Save the state, will be used by the request handler
         _save_app_state(app_state, self._asset_id, self)
