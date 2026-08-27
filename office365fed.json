@@ -19,7 +19,7 @@
         }
     ],
     "license": "Copyright (c) 2017-2026 Splunk Inc.",
-    "utctime_updated": "2026-08-21T05:50:43Z",
+    "utctime_updated": "2026-08-04T00:11:12.361310Z",
     "package_name": "phantom_msgraphforoffice365fed",
     "main_module": "office365fed_connector.py",
     "min_phantom_version": "6.3.0",
