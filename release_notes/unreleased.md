@@ -1,1 +1,3 @@
 **Unreleased**
+* Recover admin authentication from configured OAuth or CBA credentials when connector state is missing or corrupt, without overwriting state after failed initialization.
+* Refresh the packaged Python 3.13 `cffi` dependency to version 2.1.1.
