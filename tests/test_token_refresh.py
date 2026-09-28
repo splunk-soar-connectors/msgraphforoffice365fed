@@ -18,7 +18,12 @@ from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
-from office365fed_consts import MSGOFFICE365_AUTH_FAILURE_MSG, MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS
+from office365fed_consts import (
+    MSGOFFICE365_AUTH_FAILURE_MSG,
+    MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR,
+    MSGOFFICE365_CBA_AUTH_ERROR,
+    MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,6 +101,16 @@ class TokenRefreshTests(unittest.TestCase):
         self.assertEqual(connector.refresh_count, 1)
         self.assertEqual(connector.requests[0][1], "Bearer new-token")
 
+    def test_preflight_uses_current_auth_mode_when_both_states_exist(self):
+        connector = self._connector(time.time() + 3600, [(0, {}, "")])
+        connector._state["non_admin_auth"] = {"expires_at": time.time() - 1}
+
+        status, _ = connector._make_rest_call_helper(ActionResult(), "/users")
+
+        self.assertEqual(status, 0)
+        self.assertEqual(connector.refresh_count, 0)
+        self.assertEqual(connector.requests[0][1], "Bearer old-token")
+
     def test_retries_invalid_token_lifetime_once_with_new_token(self):
         for error in ("InvalidAuthenticationToken", "Invalid token lifetime"):
             with self.subTest(error=error):
@@ -126,6 +141,136 @@ class TokenRefreshTests(unittest.TestCase):
         self.assertEqual((status, body), (-1, None))
         self.assertEqual(connector.requests, [])
 
+    def test_stops_when_refresh_status_is_not_recorded_on_action_result(self):
+        connector = self._connector(time.time() - 1, [])
+        connector._get_token = lambda action_result: -1
+
+        status, body = connector._make_rest_call_helper(ActionResult(), "/users")
+
+        self.assertEqual((status, body), (-1, None))
+        self.assertEqual(connector.requests, [])
+
+    def test_legacy_token_retries_invalid_lifetime_response(self):
+        connector = self._connector(None, [(-1, None, "InvalidAuthenticationToken. Invalid token lifetime"), (0, {}, "")])
+
+        status, body = connector._make_rest_call_helper(ActionResult(), "/users")
+
+        self.assertEqual((status, body), (0, {}))
+        self.assertEqual(connector.refresh_count, 1)
+        self.assertEqual([request[1] for request in connector.requests], ["Bearer old-token", "Bearer new-token"])
+
+    def test_token_failure_sets_action_result_status(self):
+        method = _load_method("_get_token", self.namespace)
+        connector = SimpleNamespace(
+            _auth_type="cba",
+            _client_secret=None,
+            _generate_new_cba_access_token=lambda action_result: (-1, None),
+        )
+        result = ActionResult()
+
+        status = method(connector, result)
+
+        self.assertEqual(status, -1)
+        self.assertEqual(result.get_status(), -1)
+        self.assertEqual(result.get_message(), "Unable to generate access token")
+
+    def test_preflight_stops_after_cba_token_generator_failure(self):
+        method = _load_method("_get_token", self.namespace)
+        connector = self._connector(time.time() - 1, [])
+        connector._auth_type = "cba"
+        connector._client_secret = None
+        connector._generate_new_cba_access_token = lambda action_result: (-1, None)
+        connector._get_token = lambda action_result: method(connector, action_result)
+        result = ActionResult()
+
+        status, body = connector._make_rest_call_helper(result, "/users")
+
+        self.assertEqual((status, body), (-1, None))
+        self.assertEqual(result.get_status(), -1)
+        self.assertEqual(connector.requests, [])
+
+    def test_cba_validation_failures_set_action_result_status(self):
+        namespace = {
+            "phantom": self.phantom,
+            "MSGOFFICE365_CBA_AUTH_ERROR": MSGOFFICE365_CBA_AUTH_ERROR,
+            "MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR": MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR,
+        }
+        method = _load_method("_generate_new_cba_access_token", namespace)
+        for thumbprint, private_key, admin_consent, expected_message in (
+            (None, None, True, MSGOFFICE365_CBA_AUTH_ERROR),
+            ("thumbprint", "private-key", False, MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR),
+        ):
+            with self.subTest(expected_message=expected_message):
+                connector = SimpleNamespace(
+                    _state={"admin_auth": {"access_token": "old"}},
+                    _thumbprint=thumbprint,
+                    _certificate_private_key=private_key,
+                    _admin_consent=admin_consent,
+                    save_progress=lambda message: None,
+                )
+                result = ActionResult()
+
+                status, body = method(connector, result)
+
+                self.assertEqual((status, body), (-1, None))
+                self.assertEqual(result.get_message(), expected_message)
+
+    def test_msal_token_failure_sets_action_result_status(self):
+        class MsalApplication:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def acquire_token_for_client(self, scopes):
+                return {"error": "invalid_client", "error_description": "certificate rejected"}
+
+        namespace = {
+            "phantom": self.phantom,
+            "msal": SimpleNamespace(ConfidentialClientApplication=MsalApplication),
+            "MSGOFFICE365_AUTHORITY_URL": "{base_url}/{tenant}",
+        }
+        method = _load_method("_generate_new_cba_access_token", namespace)
+        connector = SimpleNamespace(
+            _state={},
+            _thumbprint="123456",
+            _certificate_private_key="configured",
+            _admin_consent=True,
+            _client_id="client",
+            _entra_base_url="https://login.microsoftonline.us",
+            _tenant="tenant",
+            _default_scope="https://graph.microsoft.us/.default",
+            _get_private_key=lambda action_result: (0, "private-key"),
+            save_progress=lambda message: None,
+            debug_print=lambda message: None,
+        )
+        result = ActionResult()
+
+        status, body = method(connector, result)
+
+        self.assertEqual((status, body), (-1, None))
+        self.assertEqual(result.get_status(), -1)
+        self.assertIn("invalid_client", result.get_message())
+
+    def test_oauth_without_refresh_token_returns_error_tuple(self):
+        namespace = {"phantom": self.phantom, "SERVER_TOKEN_URL": "{base_url}/{tenant}/oauth2/v2.0/token"}
+        method = _load_method("_generate_new_oauth_access_token", namespace)
+        connector = SimpleNamespace(
+            _admin_access=False,
+            _scope="User.Read",
+            _client_id="client",
+            _client_secret="secret",
+            _tenant="tenant",
+            _entra_base_url="https://login.microsoftonline.us",
+            _state={},
+            _refresh_token=None,
+            save_progress=lambda message: None,
+        )
+        result = ActionResult()
+
+        status, body = method(connector, result)
+
+        self.assertEqual((status, body), (-1, None))
+        self.assertEqual(result.get_message(), "Unexpected details retrieved from the state file.")
+
     def test_token_expiry_is_saved_with_new_access_token(self):
         clock = SimpleNamespace(now=1000)
         self.namespace["time"] = SimpleNamespace(time=lambda: clock.now)
@@ -153,26 +298,42 @@ class TokenRefreshTests(unittest.TestCase):
         self.assertEqual(connector.saved_state["admin_auth"]["expires_at"], 4600)
 
     def test_download_error_is_processed_for_token_retry(self):
+        class Soup:
+            def __init__(self, text, parser):
+                self.text = text
+
+            def __call__(self, tags):
+                return []
+
+        response = SimpleNamespace(
+            status_code=401,
+            headers={"Content-Type": "application/json"},
+            text='{"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}}',
+            json=lambda: {"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}},
+        )
         namespace = {
             "phantom": self.phantom,
-            "requests": SimpleNamespace(get=lambda *args, **kwargs: SimpleNamespace(status_code=401)),
+            "requests": SimpleNamespace(get=lambda *args, **kwargs: response),
+            "RetVal": lambda *values: values,
+            "BeautifulSoup": Soup,
             "MSGOFFICE365_DEFAULT_REQUEST_TIMEOUT": 30,
         }
-        method = _load_method("_make_rest_call", namespace)
+        make_rest_call = _load_method("_make_rest_call", namespace)
+        process_response = _load_method("_process_response", namespace)
+        process_json_response = _load_method("_process_json_response", namespace)
         connector = SimpleNamespace(
             _number_of_retries=1,
-            _process_response=lambda response, action_result: (
-                action_result.set_status(-1, "InvalidAuthenticationToken. Invalid token lifetime"),
-                None,
-            ),
             debug_print=lambda *args: None,
         )
+        connector._process_json_response = lambda response, action_result: process_json_response(connector, response, action_result)
+        connector._process_response = lambda response, action_result: process_response(connector, response, action_result)
         result = ActionResult()
 
-        status, body = method(connector, result, "https://graph.microsoft.us/v1.0/me", download=True)
+        status, body = make_rest_call(connector, result, "https://graph.microsoft.us/v1.0/me", download=True)
 
         self.assertEqual((status, body), (-1, None))
         self.assertIn("InvalidAuthenticationToken", result.get_message())
+        self.assertIn("Invalid token lifetime", result.get_message())
 
 
 if __name__ == "__main__":
