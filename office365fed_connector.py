@@ -3206,10 +3206,6 @@ class Office365Connector(BaseConnector):
     def _generate_new_cba_access_token(self, action_result):
         self.save_progress("Generating token using Certificate Based Authentication...")
 
-        # reset the state
-        self._state.pop("admin_auth", None)
-        self._state.pop("non_admin_auth", None)
-
         # Certificate Based Authentication requires both Certificate Thumbprint and Certificate Private Key
         if not (self._thumbprint and self._certificate_private_key):
             self.save_progress(MSGOFFICE365_CBA_AUTH_ERROR)
@@ -3303,6 +3299,10 @@ class Office365Connector(BaseConnector):
             if phantom.is_fail(action_result.get_status()):
                 return action_result.get_status()
             return action_result.set_status(phantom.APP_ERROR, "Unable to generate access token")
+
+        if auth_type == "cba":
+            self._state.pop("admin_auth", None)
+            self._state.pop("non_admin_auth", None)
 
         # Save the determined auth type
         self._state["auth_type"] = auth_type

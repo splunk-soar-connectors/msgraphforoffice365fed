@@ -215,7 +215,7 @@ class TokenRefreshTests(unittest.TestCase):
                 self.assertEqual((status, body), (-1, None))
                 self.assertEqual(result.get_message(), expected_message)
 
-    def test_msal_token_failure_sets_action_result_status(self):
+    def test_msal_failure_preserves_cached_auth_on_finalize(self):
         class MsalApplication:
             def __init__(self, *args, **kwargs):
                 pass
@@ -227,28 +227,42 @@ class TokenRefreshTests(unittest.TestCase):
             "phantom": self.phantom,
             "msal": SimpleNamespace(ConfidentialClientApplication=MsalApplication),
             "MSGOFFICE365_AUTHORITY_URL": "{base_url}/{tenant}",
+            "time": time,
         }
-        method = _load_method("_generate_new_cba_access_token", namespace)
-        connector = SimpleNamespace(
-            _state={},
-            _thumbprint="123456",
-            _certificate_private_key="configured",
-            _admin_consent=True,
-            _client_id="client",
-            _entra_base_url="https://login.microsoftonline.us",
-            _tenant="tenant",
-            _default_scope="https://graph.microsoft.us/.default",
-            _get_private_key=lambda action_result: (0, "private-key"),
-            save_progress=lambda message: None,
-            debug_print=lambda message: None,
-        )
+        cba_method = _load_method("_generate_new_cba_access_token", namespace)
+        get_token_method = _load_method("_get_token", namespace)
+        finalize_method = _load_method("finalize", namespace)
+        connector = self._connector(time.time() + 30, [])
+        connector._state["admin_auth"]["access_token"] = "old-token"
+        connector._state["non_admin_auth"] = {"access_token": "previous-delegated-token"}
+        initial_state = deepcopy(connector._state)
+        saved_states = []
+        connector._auth_type = "cba"
+        connector._client_secret = None
+        connector._thumbprint = "123456"
+        connector._certificate_private_key = "configured"
+        connector._admin_consent = True
+        connector._client_id = "client"
+        connector._entra_base_url = "https://login.microsoftonline.us"
+        connector._tenant = "tenant"
+        connector._default_scope = "https://graph.microsoft.us/.default"
+        connector._initialization_succeeded = True
+        connector._get_private_key = lambda action_result: (0, "private-key")
+        connector._generate_new_cba_access_token = lambda action_result: cba_method(connector, action_result)
+        connector._get_token = lambda action_result: get_token_method(connector, action_result)
+        connector.save_progress = lambda message: None
+        connector.save_state = lambda state: saved_states.append(deepcopy(state))
         result = ActionResult()
 
-        status, body = method(connector, result)
+        status, body = connector._make_rest_call_helper(result, "/users")
+        finalize_method(connector)
 
         self.assertEqual((status, body), (-1, None))
         self.assertEqual(result.get_status(), -1)
         self.assertIn("invalid_client", result.get_message())
+        self.assertFalse(connector.requests)
+        self.assertEqual(connector._state, initial_state)
+        self.assertEqual(saved_states, [initial_state])
 
     def test_oauth_without_refresh_token_returns_error_tuple(self):
         namespace = {"phantom": self.phantom, "SERVER_TOKEN_URL": "{base_url}/{tenant}/oauth2/v2.0/token"}
@@ -285,7 +299,7 @@ class TokenRefreshTests(unittest.TestCase):
             _client_secret=None,
             _admin_access=True,
             _admin_consent=True,
-            _state={},
+            _state={"admin_auth": {"access_token": "old-token"}, "non_admin_auth": {"access_token": "previous-delegated-token"}},
             _generate_new_cba_access_token=generate_token,
             debug_print=lambda *args: None,
         )
@@ -296,6 +310,7 @@ class TokenRefreshTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(connector.saved_state["admin_auth"]["access_token"], "new-token")
         self.assertEqual(connector.saved_state["admin_auth"]["expires_at"], 4600)
+        self.assertNotIn("non_admin_auth", connector.saved_state)
 
     def test_download_error_is_processed_for_token_retry(self):
         class Soup:
