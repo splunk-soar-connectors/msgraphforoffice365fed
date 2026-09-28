@@ -73,6 +73,7 @@ MSGOFFICE365_NON_ADMIN_SCOPE_ERROR = "Please provide scope for non-admin access 
 MSGOFFICE365_DEFAULT_REQUEST_TIMEOUT = 30  # in seconds
 MSGOFFICE365_DEFAULT_NUMBER_OF_RETRIES = 3
 MSGOFFICE365_DEFAULT_RETRY_WAIT_TIME = 60  # in seconds
+MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS = 60
 MSGOFFICE365_CONTAINER_DESCRIPTION = "Email ingested using MS Graph API - {last_modified_time}"
 MSGOFFICE365_HTTP_401_STATUS_CODE = "401"
 MSGOFFICE365_INVALID_CLIENT_ID_ERROR_CODE = "AADSTS700016"
@@ -99,6 +100,7 @@ MSGOFFICE365_AUTH_FAILURE_MSG = [
     "AuthenticationFailed",
     "TokenExpired",
     "InvalidAuthenticationToken",
+    "Invalid token lifetime",
     "Lifetime validation failed, the token is expired.",
 ]
 MSGOFFICE365_NON_NEG_INT_MSG = "Please provide a valid non-negative integer value in the {param} parameter"
