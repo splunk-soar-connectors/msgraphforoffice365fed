@@ -734,7 +734,7 @@ class Office365Connector(BaseConnector):
             if 200 <= r.status_code < 399:
                 return RetVal(phantom.APP_SUCCESS, r.text)
             self.debug_print("Error while downloading a file content")
-            return RetVal(phantom.APP_ERROR, None)
+            return self._process_response(r, action_result)
 
         return self._process_response(r, action_result)
 
@@ -865,6 +865,13 @@ class Office365Connector(BaseConnector):
             else:
                 url = f"{self._graph_base_url}/beta{endpoint}"
 
+        auth_state = self._state.get("admin_auth" if self._admin_access else "non_admin_auth", {})
+        expires_at = auth_state.get("expires_at")
+        if isinstance(expires_at, (int, float)) and time.time() >= expires_at:
+            ret_val = self._get_token(action_result)
+            if phantom.is_fail(ret_val):
+                return ret_val, None
+
         if headers is None:
             headers = {}
 
@@ -874,11 +881,15 @@ class Office365Connector(BaseConnector):
 
         # If token is expired, generate a new token
         msg = action_result.get_message()
-        if msg and (("token" in msg and "expired" in msg) or any(failure_msg in msg for failure_msg in MSGOFFICE365_AUTH_FAILURE_MSG)):
+        if (
+            phantom.is_fail(ret_val)
+            and msg
+            and (("token" in msg and "expired" in msg) or any(failure_msg in msg for failure_msg in MSGOFFICE365_AUTH_FAILURE_MSG))
+        ):
             self.debug_print("MSGRAPH", f"Error '{msg}' found in API response. Requesting new access token using refresh token")
             ret_val = self._get_token(action_result)
             if phantom.is_fail(ret_val):
-                return action_result.get_status(), None
+                return ret_val, None
 
             headers.update({"Authorization": f"Bearer {self._access_token}"})
 
@@ -3195,19 +3206,15 @@ class Office365Connector(BaseConnector):
     def _generate_new_cba_access_token(self, action_result):
         self.save_progress("Generating token using Certificate Based Authentication...")
 
-        # reset the state
-        self._state.pop("admin_auth", None)
-        self._state.pop("non_admin_auth", None)
-
         # Certificate Based Authentication requires both Certificate Thumbprint and Certificate Private Key
         if not (self._thumbprint and self._certificate_private_key):
             self.save_progress(MSGOFFICE365_CBA_AUTH_ERROR)
-            return self.set_status(phantom.APP_ERROR), None
+            return action_result.set_status(phantom.APP_ERROR, MSGOFFICE365_CBA_AUTH_ERROR), None
 
         # Check non-interactive is enabled for CBA auth
         if not self._admin_consent:
             self.save_progress(MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR)
-            return self.set_status(phantom.APP_ERROR), None
+            return action_result.set_status(phantom.APP_ERROR, MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR), None
 
         ret_val, self._private_key = self._get_private_key(action_result)
 
@@ -3268,9 +3275,9 @@ class Office365Connector(BaseConnector):
                 data["refresh_token"] = self._refresh_token
                 data["grant_type"] = "refresh_token"
             else:
-                return action_result.set_status(
-                    phantom.APP_ERROR,
-                    "Unexpected details retrieved from the state file.",
+                return (
+                    action_result.set_status(phantom.APP_ERROR, "Unexpected details retrieved from the state file."),
+                    None,
                 )
 
         self.debug_print("Generating token...")
@@ -3286,9 +3293,16 @@ class Office365Connector(BaseConnector):
         )
 
         # Attempt to generate the access token and check for failure
+        token_requested_at = time.time()
         ret_val, resp_json = generate_token_func(action_result)
         if phantom.is_fail(ret_val):
-            return action_result.get_status()
+            if phantom.is_fail(action_result.get_status()):
+                return action_result.get_status()
+            return action_result.set_status(phantom.APP_ERROR, "Unable to generate access token")
+
+        if auth_type == "cba":
+            self._state.pop("admin_auth", None)
+            self._state.pop("non_admin_auth", None)
 
         # Save the determined auth type
         self._state["auth_type"] = auth_type
@@ -3297,6 +3311,10 @@ class Office365Connector(BaseConnector):
             self._state["admin_consent"] = True
 
         # Save the response on the basis of admin_access
+        expires_in = resp_json.get("expires_in")
+        if isinstance(expires_in, (int, float)) and expires_in > 0:
+            resp_json["expires_at"] = token_requested_at + expires_in
+
         if self._admin_access:
             # if admin consent already provided, save to state
             if self._admin_consent:
