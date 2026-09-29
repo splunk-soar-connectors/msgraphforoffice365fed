@@ -22,7 +22,6 @@ from office365fed_consts import (
     MSGOFFICE365_AUTH_FAILURE_MSG,
     MSGOFFICE365_CBA_ADMIN_CONSENT_ERROR,
     MSGOFFICE365_CBA_AUTH_ERROR,
-    MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS,
 )
 
 
@@ -60,7 +59,6 @@ class TokenRefreshTests(unittest.TestCase):
         self.namespace = {
             "phantom": self.phantom,
             "time": time,
-            "MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS": MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS,
             "MSGOFFICE365_AUTH_FAILURE_MSG": MSGOFFICE365_AUTH_FAILURE_MSG,
         }
 
@@ -92,14 +90,46 @@ class TokenRefreshTests(unittest.TestCase):
         connector._make_rest_call_helper = lambda action_result, endpoint, **kwargs: method(connector, action_result, endpoint, **kwargs)
         return connector
 
-    def test_refreshes_before_request_when_token_nears_expiry(self):
-        connector = self._connector(time.time() + 30, [(0, {"value": []}, "")], admin_access=False)
+    def test_refreshes_before_request_when_token_has_expired(self):
+        connector = self._connector(time.time() - 1, [(0, {"value": []}, "")], admin_access=False)
 
         status, body = connector._make_rest_call_helper(ActionResult(), "/me")
 
         self.assertEqual((status, body), (0, {"value": []}))
         self.assertEqual(connector.refresh_count, 1)
         self.assertEqual(connector.requests[0][1], "Bearer new-token")
+
+    def test_refreshes_at_recorded_expiry(self):
+        self.namespace["time"] = SimpleNamespace(time=lambda: 1000)
+        connector = self._connector(1000, [(0, {}, "")])
+
+        status, body = connector._make_rest_call_helper(ActionResult(), "/me")
+
+        self.assertEqual((status, body), (0, {}))
+        self.assertEqual(connector.refresh_count, 1)
+        self.assertEqual(connector.requests[0][1], "Bearer new-token")
+
+    def test_valid_token_survives_token_endpoint_outage_and_finalize(self):
+        self.namespace["time"] = SimpleNamespace(time=lambda: 1000)
+        connector = self._connector(1030, [(0, {"value": []}, "")])
+        connector._state["admin_auth"]["access_token"] = "old-token"
+        initial_state = deepcopy(connector._state)
+        saved_states = []
+        connector._initialization_succeeded = True
+        connector.save_state = lambda state: saved_states.append(deepcopy(state))
+        connector._get_token = lambda action_result: action_result.set_status(-1, "Token endpoint unavailable")
+        result = ActionResult()
+        finalize = _load_method("finalize", self.namespace)
+
+        status, body = connector._make_rest_call_helper(result, "/me")
+        finalize(connector)
+
+        self.assertEqual((status, body), (0, {"value": []}))
+        self.assertEqual(result.get_status(), 0)
+        self.assertEqual(result.get_message(), "")
+        self.assertEqual(connector.requests[0][1], "Bearer old-token")
+        self.assertEqual(connector._state, initial_state)
+        self.assertEqual(saved_states, [initial_state])
 
     def test_preflight_uses_current_auth_mode_when_both_states_exist(self):
         connector = self._connector(time.time() + 3600, [(0, {}, "")])
@@ -232,7 +262,7 @@ class TokenRefreshTests(unittest.TestCase):
         cba_method = _load_method("_generate_new_cba_access_token", namespace)
         get_token_method = _load_method("_get_token", namespace)
         finalize_method = _load_method("finalize", namespace)
-        connector = self._connector(time.time() + 30, [])
+        connector = self._connector(time.time() - 1, [])
         connector._state["admin_auth"]["access_token"] = "old-token"
         connector._state["non_admin_auth"] = {"access_token": "previous-delegated-token"}
         initial_state = deepcopy(connector._state)
@@ -312,7 +342,7 @@ class TokenRefreshTests(unittest.TestCase):
         self.assertEqual(connector.saved_state["admin_auth"]["expires_at"], 4600)
         self.assertNotIn("non_admin_auth", connector.saved_state)
 
-    def test_download_error_is_processed_for_token_retry(self):
+    def test_download_retries_graph_401_with_new_token(self):
         class Soup:
             def __init__(self, text, parser):
                 self.text = text
@@ -320,35 +350,61 @@ class TokenRefreshTests(unittest.TestCase):
             def __call__(self, tags):
                 return []
 
-        response = SimpleNamespace(
-            status_code=401,
-            headers={"Content-Type": "application/json"},
-            text='{"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}}',
-            json=lambda: {"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}},
-        )
+        responses = [
+            SimpleNamespace(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                text='{"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}}',
+                json=lambda: {"error": {"code": "InvalidAuthenticationToken", "message": "Invalid token lifetime"}},
+            ),
+            SimpleNamespace(status_code=200, headers={"Content-Type": "text/plain"}, text="downloaded content"),
+        ]
+        requests_sent = []
+
+        def get(url, **kwargs):
+            requests_sent.append((url, dict(kwargs["headers"])))
+            return responses.pop(0)
+
         namespace = {
             "phantom": self.phantom,
-            "requests": SimpleNamespace(get=lambda *args, **kwargs: response),
+            "requests": SimpleNamespace(get=get),
             "RetVal": lambda *values: values,
             "BeautifulSoup": Soup,
             "MSGOFFICE365_DEFAULT_REQUEST_TIMEOUT": 30,
+            "MSGOFFICE365_AUTH_FAILURE_MSG": MSGOFFICE365_AUTH_FAILURE_MSG,
+            "time": time,
+            "_is_token_response": lambda response, entra_base_url: False,
         }
         make_rest_call = _load_method("_make_rest_call", namespace)
+        make_rest_call_helper = _load_method("_make_rest_call_helper", namespace)
         process_response = _load_method("_process_response", namespace)
         process_json_response = _load_method("_process_json_response", namespace)
         connector = SimpleNamespace(
             _number_of_retries=1,
+            _state={"admin_auth": {"expires_at": time.time() + 3600}},
+            _admin_access=True,
+            _graph_base_url="https://graph.microsoft.us",
+            _entra_base_url="https://login.microsoftonline.us",
+            _access_token="old-token",
             debug_print=lambda *args: None,
         )
+        connector._make_rest_call = lambda *args, **kwargs: make_rest_call(connector, *args, **kwargs)
         connector._process_json_response = lambda response, action_result: process_json_response(connector, response, action_result)
         connector._process_response = lambda response, action_result: process_response(connector, response, action_result)
+
+        def get_token(action_result):
+            connector._access_token = "new-token"
+            return action_result.set_status(0)
+
+        connector._get_token = get_token
         result = ActionResult()
 
-        status, body = make_rest_call(connector, result, "https://graph.microsoft.us/v1.0/me", download=True)
+        status, body = make_rest_call_helper(connector, result, "/me", download=True)
 
-        self.assertEqual((status, body), (-1, None))
-        self.assertIn("InvalidAuthenticationToken", result.get_message())
-        self.assertIn("Invalid token lifetime", result.get_message())
+        self.assertEqual((status, body), (0, "downloaded content"))
+        self.assertEqual(result.get_status(), 0)
+        self.assertEqual([request[0] for request in requests_sent], ["https://graph.microsoft.us/v1.0/me"] * 2)
+        self.assertEqual([request[1]["Authorization"] for request in requests_sent], ["Bearer old-token", "Bearer new-token"])
 
 
 if __name__ == "__main__":

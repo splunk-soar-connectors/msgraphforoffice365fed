@@ -867,7 +867,7 @@ class Office365Connector(BaseConnector):
 
         auth_state = self._state.get("admin_auth" if self._admin_access else "non_admin_auth", {})
         expires_at = auth_state.get("expires_at")
-        if isinstance(expires_at, (int, float)) and time.time() + MSGOFFICE365_TOKEN_REFRESH_BUFFER_SECONDS >= expires_at:
+        if isinstance(expires_at, (int, float)) and time.time() >= expires_at:
             ret_val = self._get_token(action_result)
             if phantom.is_fail(ret_val):
                 return ret_val, None
