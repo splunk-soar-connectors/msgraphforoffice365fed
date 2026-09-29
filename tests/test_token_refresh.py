@@ -270,7 +270,7 @@ class TokenRefreshTests(unittest.TestCase):
         connector._auth_type = "cba"
         connector._client_secret = None
         connector._thumbprint = "123456"
-        connector._certificate_private_key = "configured"
+        connector._certificate_private_key = "configured"  # pragma: allowlist secret
         connector._admin_consent = True
         connector._client_id = "client"
         connector._entra_base_url = "https://login.microsoftonline.us"
@@ -301,7 +301,7 @@ class TokenRefreshTests(unittest.TestCase):
             _admin_access=False,
             _scope="User.Read",
             _client_id="client",
-            _client_secret="secret",
+            _client_secret="secret",  # pragma: allowlist secret
             _tenant="tenant",
             _entra_base_url="https://login.microsoftonline.us",
             _state={},
